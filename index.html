@@ -442,7 +442,6 @@ label.f>span{font-family:var(--f-display);font-weight:600;text-transform:upperca
 <div id="toast" class="toast" hidden></div>
 
 <style>
-#btnAsk{display:none!important}
 #fbGate{position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;place-items:center;padding:16px}
 #fbGate[hidden]{display:none}
 body{padding-top:env(safe-area-inset-top,0px)}
@@ -516,6 +515,55 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, co
 const firebaseConfig = {"apiKey": "AIzaSyBHVarrCxDhc-9aN17VEHXI0x5pDovV9EQ", "authDomain": "dca-proyectos.firebaseapp.com", "projectId": "dca-proyectos", "storageBucket": "dca-proyectos.firebasestorage.app", "messagingSenderId": "654651304696", "appId": "1:654651304696:web:e792aa183615c504c5a90d"};
 const GOOGLE_CLIENT_ID = "654651304696-0273rj0f6oedml43p37cuqk0oh22qfe3.apps.googleusercontent.com";
 const ADMINS = ["denisse@dcastroarq.com", "eprietonogales@diagonal.com.ec"];
+const RECAPTCHA_KEY = "";
+
+/* ---- IA (Gemini por Firebase AI Logic). Se carga solo al preguntar, en una instancia aparte. Nunca recibe montos ni el presupuesto. ---- */
+const AI_SDK = ["12.6.0","12.0.0","11.10.0"];
+const AI_MODELS = ["gemini-3.8-flash","gemini-flash-latest","gemini-2.5-flash"];
+let aiP=null, aiModelOk=null;
+function loadAI(){
+  if(aiP) return aiP;
+  aiP=(async()=>{ let last;
+    for(const v of AI_SDK){
+      try{ const b=`https://www.gstatic.com/firebasejs/${v}/`;
+        const [A,C,G]=await Promise.all([import(b+"firebase-app.js"),import(b+"firebase-app-check.js"),import(b+"firebase-ai.js")]);
+        const app2=A.getApps().find(x=>x.name==="dca-ai")||A.initializeApp(firebaseConfig,"dca-ai");
+        if(RECAPTCHA_KEY){ try{ C.initializeAppCheck(app2,{provider:new C.ReCaptchaV3Provider(RECAPTCHA_KEY), isTokenAutoRefreshEnabled:true}); }catch(e){} }
+        return {G, ai:G.getAI(app2,{backend:new G.GoogleAIBackend()})};
+      }catch(e){ last=e; }
+    }
+    throw last; })();
+  aiP.catch(()=>{ aiP=null; });
+  return aiP;
+}
+const aiErr=(e,text)=>{ const s=String(e?.message||e||""); const er=new Error(s); er.text=text||"";
+  er.code = /429|quota|RESOURCE_EXHAUSTED|rate/i.test(s) ? "rate_limited" : /app.?check|attestation|recaptcha/i.test(s) ? "appcheck" : /has not been used|disabled|not enabled|firebasevertexai|PERMISSION_DENIED|API_NOT_CONNECTED|api-not-enabled/i.test(s) ? "not_set_up" : "error";
+  return er; };
+async function aiSample(prompt, opts={}){
+  const {G, ai}=await loadAI().catch(e=>{ throw aiErr(e); });
+  const models = aiModelOk ? [aiModelOk] : AI_MODELS; let last;
+  for(const m of models){
+    let text="";
+    try{
+      const model=G.getGenerativeModel(ai,{model:m, generationConfig:{temperature:0.2, maxOutputTokens:4096}});
+      const res=await model.generateContentStream(prompt);
+      for await (const ch of res.stream){
+        if(opts.signal?.aborted){ const er=new Error("cancelled"); er.code="cancelled"; er.text=text; throw er; }
+        try{ text+=ch.text(); }catch(e){}
+        opts.onText?.({text});
+      }
+      const fin=(await res.response)?.candidates?.[0]?.finishReason;
+      aiModelOk=m;
+      return {text, truncated: fin==="MAX_TOKENS"};
+    }catch(e){
+      if(e?.code==="cancelled") throw e;
+      last=e; const s=String(e?.message||"");
+      if(!text && /404|not found|is not supported|unknown model|invalid model/i.test(s) && !aiModelOk) continue;
+      throw aiErr(e,text);
+    }
+  }
+  throw aiErr(last);
+}
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -672,7 +720,7 @@ onAuthStateChanged(auth, async u => {
       try{ await setDoc(doc(fs,"config/access"), {members:lines($g("fbMembers").value), admins:lines($g("fbAdmins").value), updatedAt:new Date().toISOString(), by:email}); m.className="fb-msg ok"; m.textContent="Guardado"; setTimeout(()=>{ $g("fbAcc").hidden=true; },700); }
       catch(e){ m.className="fb-msg"; m.textContent="No se pudo guardar."; } };
   }
-  window.__fbResolve({ db, user, room: makeRoom(u.uid), downloads, sample: null });
+  window.__fbResolve({ db, user, room: makeRoom(u.uid), downloads, sample: aiSample });
   if(isAdmin) offerImport();
 });
 </script>
@@ -2026,7 +2074,7 @@ async function processBudgetFile(file){
     if(text.replace(/---.*---/g,"").trim().length<40){ B.phase=B.doc?"saved":"empty"; drawBudget(); toast("El PDF no tiene texto legible (¿es una imagen escaneada?). Expórtalo de nuevo desde Excel."); return; }
     const sample = window.claude?.use ? await window.claude.use("sample") : null;
     let r={resumen:"",total:null,areas:[],generales:[]};
-    if(sample){
+    if(sample?.json){
       B.msg="Claude está revisando el presupuesto y organizando las áreas de diseño… (puede tardar un minuto)"; drawBudget();
       B.ctl=new AbortController();
       const prompt=`Eres asistente de un estudio de arquitectura y construcción en Ecuador. Abajo está el texto extraído de un PRESUPUESTO APROBADO (hecho en Excel y exportado a PDF; las columnas están separadas por " | ").
@@ -2160,13 +2208,19 @@ async function askNow(){
   const q=($("#askq")?.value||"").trim(); if(!q||ASK.busy) return;
   const out=$("#askOut"); const go=$("#askGo"), stop=$("#askStop");
   const sample = window.claude?.use ? await window.claude.use("sample") : null;
-  if(!sample){ out.innerHTML=`<p class="hint">Esta función solo está disponible al abrir el tablero con tu cuenta de Claude.</p>`; return; }
+  if(!sample){ out.innerHTML=`<p class="hint">Esta función no está disponible.</p>`; return; }
+  let manual=""; try{ if(!ASK.manual){ const r=await fetch("especificacion.md",{cache:"no-cache"}); if(r.ok) ASK.manual=(await r.text()).replace(/https?:\/\/claude\.ai\S*/g,"").slice(0,30000); } manual=ASK.manual||""; }catch(e){}
   ASK.busy=true; ASK.ctl=new AbortController(); go.disabled=true; stop.hidden=false;
   out.innerHTML=`<p class="hint">Pensando…</p>`;
   const prompt=`Eres el asistente del estudio Denisse Castro Arquitectura (Ecuador). Responde en español, de forma breve y directa, usando SOLO los datos del tablero que están abajo en JSON. Si la respuesta es una lista, usa viñetas con: proyecto (código), área, responsable y la fecha o estado relevante. Si no hay resultados, dilo en una frase. No inventes datos. Las fechas están en formato AAAA-MM-DD; muéstralas como DD/MM. "hoy" es la fecha actual. "revision_maxima" es la fecha límite de la primera revisión del proyecto (4 semanas desde el inicio); está vencida si es anterior a hoy. Un área está "lista para renders" si su objeto renders tiene estado "Listo para renders". "entrega_maxima" de una corrección es su fecha límite.
 
-PREGUNTA: ${q}
+Si la pregunta es sobre cómo funciona la página (permisos, columnas, reglas, cómo hacer algo), responde con el MANUAL DE LA PÁGINA. Si es sobre proyectos, usa los DATOS DEL TABLERO.
 
+PREGUNTA: ${q}
+${manual?`
+MANUAL DE LA PÁGINA:
+${manual}
+`:""}
 DATOS DEL TABLERO:
 ${JSON.stringify(boardSnapshot())}`;
   try{
@@ -2175,6 +2229,8 @@ ${JSON.stringify(boardSnapshot())}`;
   }catch(e){
     if(e?.code==="cancelled"){ out.innerHTML=(e.text?mdLite(e.text):"")+`<p class="hint">Detenido.</p>`; }
     else if(e?.code==="not_granted"||e?.code==="sampling_disabled"){ out.innerHTML=`<p class="hint">No se dio permiso para usar Claude en este tablero. Puedes activarlo en el menú de permisos del artifact.</p>`; }
+    else if(e?.code==="not_set_up"){ out.innerHTML=`<p class="hint">La IA todavía no está activada en Firebase (AI Logic). Avísale a la administración.</p>`; }
+    else if(e?.code==="appcheck"){ out.innerHTML=`<p class="hint">La verificación de seguridad de la IA (App Check) no está lista todavía. Avísale a la administración.</p>`; }
     else if(e?.code==="rate_limited"){ out.innerHTML=`<p class="hint">Demasiadas preguntas seguidas o se alcanzó el límite de uso. Intenta en un momento.</p>`; }
     else out.innerHTML=(e?.text?mdLite(e.text):"")+`<p class="hint">No se pudo obtener la respuesta. Intenta de nuevo.</p>`;
   }finally{ ASK.busy=false; if(go) go.disabled=false; if(stop) stop.hidden=true; }

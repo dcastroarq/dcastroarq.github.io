@@ -42,7 +42,7 @@ Archivo fuente: `tablero-estudio.html` (una sola página HTML) + un puente a Fir
   - **Fachada:** toda área cuyo nombre empiece por "Fachada" o "Fachadas". Va directo a Renders con Paul y no aparece en Proyectos.
 
 ## 3. Pestañas (en orden)
-Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas (el asistente ✦ Preguntar no está disponible fuera de Claude)
+Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Preguntar (asistente IA con Gemini, gratis por Firebase AI Logic, para todo el equipo: responde sobre los proyectos con los datos del tablero y sobre cómo funciona la página con esta especificación. Nunca recibe montos ni el presupuesto)
 
 ### Proyectos (diseño)
 - **Columnas:** Inicio → En proceso → Por revisar → Revisado 🔒.
