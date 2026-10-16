@@ -537,21 +537,26 @@ function loadAI(){
   return aiP;
 }
 const aiErr=(e,text)=>{ const s=String(e?.message||e||""); const er=new Error(s); er.text=text||"";
-  er.code = /429|quota|RESOURCE_EXHAUSTED|rate/i.test(s) ? "rate_limited" : /app.?check|attestation|recaptcha/i.test(s) ? "appcheck" : /has not been used|disabled|not enabled|firebasevertexai|PERMISSION_DENIED|API_NOT_CONNECTED|api-not-enabled/i.test(s) ? "not_set_up" : "error";
+  er.code = e?.code==="timeout" ? "timeout" : /429|quota|RESOURCE_EXHAUSTED|rate/i.test(s) ? "rate_limited" : /app.?check|attestation|recaptcha/i.test(s) ? "appcheck" : /has not been used|disabled|not enabled|firebasevertexai|PERMISSION_DENIED|API_NOT_CONNECTED|api-not-enabled/i.test(s) ? "not_set_up" : "error";
   return er; };
+const withTimeout=(p,ms,what)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(Object.assign(new Error("Tiempo agotado: "+what),{code:"timeout"})),ms))]);
 async function aiSample(prompt, opts={}){
-  const {G, ai}=await loadAI().catch(e=>{ throw aiErr(e); });
+  window.__aiStep="cargando IA";
+  const {G, ai}=await withTimeout(loadAI(),20000,"cargando la IA").catch(e=>{ throw aiErr(e); });
   const models = aiModelOk ? [aiModelOk] : AI_MODELS; let last;
   for(const m of models){
     let text="";
     try{
       const model=G.getGenerativeModel(ai,{model:m, generationConfig:{temperature:0.2, maxOutputTokens:4096}});
-      const res=await model.generateContentStream(prompt);
-      for await (const ch of res.stream){
+      window.__aiStep="pidiendo a "+m;
+      const res=await withTimeout(model.generateContentStream(prompt),60000,"esperando a "+m);
+      const it=res.stream[Symbol.asyncIterator]();
+      while(true){ const nx=await withTimeout(it.next(),60000,"respuesta de "+m); if(nx.done) break; const ch=nx.value;
         if(opts.signal?.aborted){ const er=new Error("cancelled"); er.code="cancelled"; er.text=text; throw er; }
         try{ text+=ch.text(); }catch(e){}
         opts.onText?.({text});
       }
+      window.__aiStep="listo";
       const fin=(await res.response)?.candidates?.[0]?.finishReason;
       aiModelOk=m;
       return {text, truncated: fin==="MAX_TOKENS"};
@@ -2230,9 +2235,9 @@ ${JSON.stringify(boardSnapshot())}`;
     if(e?.code==="cancelled"){ out.innerHTML=(e.text?mdLite(e.text):"")+`<p class="hint">Detenido.</p>`; }
     else if(e?.code==="not_granted"||e?.code==="sampling_disabled"){ out.innerHTML=`<p class="hint">No se dio permiso para usar Claude en este tablero. Puedes activarlo en el menú de permisos del artifact.</p>`; }
     else if(e?.code==="not_set_up"){ out.innerHTML=`<p class="hint">La IA todavía no está activada en Firebase (AI Logic). Avísale a la administración.</p>`; }
-    else if(e?.code==="appcheck"){ out.innerHTML=`<p class="hint">La verificación de seguridad de la IA (App Check) no está lista todavía. Avísale a la administración.</p>`; }
+    else if(e?.code==="appcheck"){ out.innerHTML=`<p class="hint">La verificación de seguridad de la IA (App Check) no está lista todavía. Avísale a la administración.</p>${S.isAdmin?`<p class="hint" style="font-size:11px;word-break:break-word">Detalle técnico: ${esc(String(e.message||"").slice(0,400))}</p>`:""}`; }
     else if(e?.code==="rate_limited"){ out.innerHTML=`<p class="hint">Demasiadas preguntas seguidas o se alcanzó el límite de uso. Intenta en un momento.</p>`; }
-    else out.innerHTML=(e?.text?mdLite(e.text):"")+`<p class="hint">No se pudo obtener la respuesta. Intenta de nuevo.</p>`;
+    else out.innerHTML=(e?.text?mdLite(e.text):"")+`<p class="hint">No se pudo obtener la respuesta. Intenta de nuevo.</p>${S.isAdmin&&e?.message?`<p class="hint" style="font-size:11px;word-break:break-word">Detalle técnico: ${esc(String(e.message).slice(0,400))}</p>`:""}`;
   }finally{ ASK.busy=false; if(go) go.disabled=false; if(stop) stop.hidden=true; }
 }
 
