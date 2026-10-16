@@ -445,6 +445,7 @@ label.f>span{font-family:var(--f-display);font-weight:600;text-transform:upperca
 .fb-card .fb-go{background:var(--accent);color:var(--accent-ink);border:0;border-radius:var(--r);padding:11px;font-weight:600;font-size:15px;cursor:pointer}
 .fb-card .fb-go:disabled{opacity:.6;cursor:default}
 .fb-card .fb-link{background:none;border:0;color:var(--accent);cursor:pointer;font-size:13px;padding:0;align-self:flex-start}
+.fb-gsi{display:flex;justify-content:center;min-height:44px}
 .fb-google{display:flex;align-items:center;justify-content:center;gap:10px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:var(--r);padding:11px;font-weight:600;font-size:15px;cursor:pointer}
 .fb-google:hover{border-color:var(--muted)}
 .fb-or{text-align:center;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
@@ -465,6 +466,7 @@ label.f>span{font-family:var(--f-display);font-weight:600;text-transform:upperca
   <form class="fb-card" id="fbForm" autocomplete="on">
     <div class="eyebrow">Gestión de proyectos</div>
     <h2>Denisse Castro Arquitectura</h2>
+    <div id="fbGsi" class="fb-gsi" hidden></div>
     <button class="fb-google" id="fbGoogle" type="button"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.2C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.7 6c4.5-4.2 6.9-10.3 6.9-17.7z"/><path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.2C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.7-6c-2.2 1.5-5 2.3-8.2 2.3-6.2 0-11.5-4.1-13.4-9.8l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>Entrar con Google</button>
     <div class="fb-or">o con correo y clave</div>
     <label>Correo<input id="fbEmail" type="email" autocomplete="username"></label>
@@ -492,10 +494,11 @@ label.f>span{font-family:var(--f-display);font-weight:600;text-transform:upperca
 </script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, setPersistence, browserLocalPersistence, GoogleAuthProvider, signInWithPopup, signInWithRedirect } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, setPersistence, browserLocalPersistence, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signInWithCredential } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, orderBy, limit, where, getDocs, addDoc, FieldPath, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {"apiKey": "AIzaSyBHVarrCxDhc-9aN17VEHXI0x5pDovV9EQ", "authDomain": "dca-proyectos.firebaseapp.com", "projectId": "dca-proyectos", "storageBucket": "dca-proyectos.firebasestorage.app", "messagingSenderId": "654651304696", "appId": "1:654651304696:web:e792aa183615c504c5a90d"};
+const GOOGLE_CLIENT_ID = "654651304696-0273rj0f6oedml43p37cuqk0oh22qfe3.apps.googleusercontent.com";
 const ADMINS = ["denisse@dcastroarq.com", "eprietonogales@diagonal.com.ec"];
 
 const app = initializeApp(firebaseConfig);
@@ -512,6 +515,19 @@ $g("fbForm").addEventListener("submit", async e => {
   try{ await signInWithEmailAndPassword(auth, $g("fbEmail").value.trim(), $g("fbPass").value); }
   catch(err){ msg(authErr(err.code)); b.disabled=false; }
 });
+/* Botón oficial de Google (funciona también en iPhone). Si no carga, queda el botón anterior. */
+function setupGsi(){
+  const sc=document.createElement("script"); sc.src="https://accounts.google.com/gsi/client"; sc.async=true;
+  sc.onload=()=>{ try{
+    google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, ux_mode:"popup", auto_select:false, cancel_on_tap_outside:true,
+      callback: async r => { msg(""); try{ await signInWithCredential(auth, GoogleAuthProvider.credential(r.credential)); }catch(err){ msg(authErr(err.code)); } } });
+    const box=$g("fbGsi"); const w=Math.min(400, Math.max(200, Math.round(box.parentElement.getBoundingClientRect().width-40)));
+    box.hidden=false; google.accounts.id.renderButton(box, { theme:"outline", size:"large", text:"signin_with", shape:"rectangular", logo_alignment:"center", locale:"es", width:w });
+    $g("fbGoogle").hidden=true;
+  }catch(e){} };
+  document.head.appendChild(sc);
+}
+setupGsi();
 $g("fbGoogle").addEventListener("click", async () => {
   msg(""); const pr=new GoogleAuthProvider(); pr.setCustomParameters({prompt:"select_account"});
   try{ await signInWithPopup(auth, pr); }
