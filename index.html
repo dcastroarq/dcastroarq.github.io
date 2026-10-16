@@ -1200,7 +1200,7 @@ function mineHTML(){
     <ul class="area-list">${g.items.map(({a,n,mineNow})=>`<li class="area mrow ${cls(n)}">
       <span class="area-n"><b>${esc(a.name)}</b><span class="where">${esc(n.cat)} · ${esc(n.phase)}${n.extra?` · ${esc(n.extra)}`:""}</span>${waitTags(g.p,a)}</span>
       <span class="due-r">${n.chip||""}</span>
-      ${mineNow?nowSelect(g.p,a,n):n.owner2===who?`<span class="with">Responsable 2 · mueve ${esc(n.owner||"—")}</span>`:`<span class="with">Ahora con ${esc(bothNames(n.owner,n.owner2)||"—")}</span>`}
+      ${mineNow?nowSelect(g.p,a,n):n.owner2===who?`<span class="with">Responsable 2</span>`:`<span class="with">Ahora con ${esc(bothNames(n.owner,n.owner2)||"—")}</span>`}
     </li>`).join("")}</ul></section>`).join("")}</div>`;
 }
 const LEGEND=`<footer class="legend"><span class="lg-t">Leyenda</span>

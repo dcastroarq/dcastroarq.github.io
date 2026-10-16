@@ -14,7 +14,7 @@ Archivo fuente: `tablero-estudio.html` (una sola página HTML) + un puente a Fir
 - **Administración:** denisse@dcastroarq.com y eprietonogales@diagonal.com.ec (Emilio Prieto), más quien se agregue como administrador en Accesos. El equipo entra con su correo agregado en Accesos.
 - **Equipo:** Daniela Molina, Paul Moreira, Camila Coello, Juan José Ochoa, Adrián Cárdenas y Elvira Acosta. Denisse también diseña.
 - Cada persona elige su nombre una sola vez. Solo la administración puede liberarlo.
-- **Dos responsables por área (opcional, para proyectos grandes):** el responsable 1 es el encargado y el único que puede mover la tarjeta de fase; el responsable 2 la ve en su tablero y en Mis tareas ("Responsable 2 · mueve X"), y aparece en los filtros. Solo cuando hay 2 en la fase actual la tarjeta muestra "Responsables" con los dos nombres; si hay uno, queda igual.
+- **Dos responsables por área (opcional, para proyectos grandes):** el responsable 1 es el encargado y el único que puede mover la tarjeta de fase; el responsable 2 la ve en su tablero y en Mis tareas (con la nota "Responsable 2"), y aparece en los filtros. Solo cuando hay 2 en la fase actual la tarjeta muestra "Responsables" con los dos nombres; si hay uno, queda igual.
   - Se elige al crear el proyecto (selector "2º" junto al responsable) o en "Ver proyecto completo".
   - En Correcciones y Planos se hereda del área cuando la tarea la lleva el mismo responsable 1; en el proyecto completo la administración puede poner otro 2º responsable para los planos. Renders sigue siendo solo de Paul.
   - Si el responsable 2 pasa a ser el responsable 1, el 2º se quita.
