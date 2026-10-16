@@ -1,15 +1,17 @@
 # App de proyectos · Denisse Castro Arquitectura
 Especificación al 15/10/2026. Esta es la referencia para seguir mejorando la app.
 
-**App publicada (actualizar siempre esta misma, no crear otra):**
-https://claude.ai/artifact/SPjYnFrBsaWNuB563RBapQ
+**App publicada:** https://dcastroarq.github.io (GitHub Pages, repositorio dcastroarq/dcastroarq.github.io; se actualiza sola en 1–2 minutos con cada cambio).
+La versión anterior en Claude (https://claude.ai/artifact/SPjYnFrBsaWNuB563RBapQ) ya no se usa.
 
-Archivo fuente: `tablero-estudio.html` (una sola página HTML). Datos en la base compartida del artifact: `projects`, `assignments`, `activity`, `people`, `config/settings` y `private` (presupuestos).
+Archivo fuente: `tablero-estudio.html` (una sola página HTML) + un puente a Firebase (`fb/shim.html`, `fb/build.py`) que genera `index.html`. Datos en Firebase (proyecto `dca-proyectos`, Firestore): `projects`, `assignments`, `activity`, `people`, `presence`, `config/settings`, `config/access` y `private` (presupuestos). Las reglas de Firestore protegen los mismos permisos que la app.
+
+**Ingreso:** botón "Acceder con Google" o correo y clave (con "¿Olvidaste tu clave?"). Solo entran los correos autorizados en el panel **Accesos** (solo administración). Mientras se comprueba la sesión y mientras cargan los proyectos se ve una ruedita girando. Se puede agregar al inicio del celular (ícono con el logo, nombre "DCA Proyectos").
 
 ---
 
 ## 1. Personas y permisos
-- **Administración:** Denisse Castro (dueña) y cualquier persona a quien ella comparta la app con permiso de **edición** (Emilio Prieto, su esposo). Al resto del equipo se le comparte con permiso para usarla, sin edición.
+- **Administración:** denisse@dcastroarq.com y eprietonogales@diagonal.com.ec (Emilio Prieto), más quien se agregue como administrador en Accesos. El equipo entra con su correo agregado en Accesos.
 - **Equipo:** Daniela Molina, Paul Moreira, Camila Coello, Juan José Ochoa, Adrián Cárdenas y Elvira Acosta. Denisse también diseña.
 - Cada persona elige su nombre una sola vez. Solo la administración puede liberarlo.
 - Nadie del equipo puede cambiar tareas asignadas a otra persona.
@@ -36,7 +38,7 @@ Archivo fuente: `tablero-estudio.html` (una sola página HTML). Datos en la base
   - **Fachada:** toda área cuyo nombre empiece por "Fachada" o "Fachadas". Va directo a Renders con Paul y no aparece en Proyectos.
 
 ## 3. Pestañas (en orden)
-Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Preguntar (asistente IA con los datos del tablero, sin montos)
+Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas (el asistente ✦ Preguntar no está disponible fuera de Claude)
 
 ### Proyectos (diseño)
 - **Columnas:** Inicio → En proceso → Por revisar → Revisado 🔒.
