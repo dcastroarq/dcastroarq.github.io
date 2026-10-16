@@ -301,6 +301,11 @@ label.f>span{font-family:var(--f-display);font-weight:600;text-transform:upperca
 .who-n{font-weight:600;font-size:13.5px;overflow-wrap:anywhere}
 .who.none .av{background:var(--hi-soft);color:var(--ink);border:1px dashed var(--hi)}
 .who.none .who-n{color:var(--hi);font-weight:500}
+.who2 .avs{display:flex;flex:none}
+.who2 .avs .av{margin-left:0;width:26px;height:26px;font-size:11px}
+.who2 .avs .av2{margin-left:-6px;box-shadow:0 0 0 2px var(--surface)}
+.who-n2{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.la-w2{display:block;color:var(--muted);font-size:12.5px}
 .who-inline{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:13px}
 .who-inline .av{margin-left:0;width:22px;height:22px;font-size:10px}
 .owner-n{font-size:12px;color:var(--muted);margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
@@ -864,11 +869,15 @@ function stageItems(stage, excludeId){ return S.projects.filter(p=>p.stage===sta
 
 /* ---------- filters ---------- */
 const NO_OWNER="__sin__";
-const ownerMatch = n => S.owner===NO_OWNER ? !n : n===S.owner;
+const ownerMatch = (n,n2) => S.owner===NO_OWNER ? !n : (n===S.owner || (!!n2 && n2===S.owner));
+/* Segundo responsable: en Proyectos es el del área; en Planos y Correcciones se hereda del área si la tarea la lleva el mismo responsable 1, salvo que se haya puesto otro a mano. Solo el responsable 1 mueve la tarjeta. */
+const own2 = (task,a) => { if(!task||!a) return ""; const v = ("owner2" in task) ? (task.owner2||"") : (task.owner && task.owner===a.owner ? (a.owner2||"") : ""); return v && v!==task.owner ? v : ""; };
+const areaOwner2 = a => (a?.owner2 && a.owner2!==a.owner) ? a.owner2 : "";
+const bothNames = (o1,o2) => o2 ? `${o1||"—"} y ${o2}` : (o1||"");
 function filtered(){
   const q=S.q.trim().toLowerCase();
   return S.projects.filter(p=>{
-    if(S.owner && (S.owner===NO_OWNER ? !((p.areas||[]).length ? (p.areas||[]).some(a=>!a.owner) : !p.owner) : (p.owner!==S.owner && !(p.areas||[]).some(a=>a.owner===S.owner)))) return false;
+    if(S.owner && (S.owner===NO_OWNER ? !((p.areas||[]).length ? (p.areas||[]).some(a=>!a.owner) : !p.owner) : (p.owner!==S.owner && !(p.areas||[]).some(a=>a.owner===S.owner||areaOwner2(a)===S.owner)))) return false;
     if(S.type && p.type!==S.type) return false;
     if(q && ![p.name,p.client,p.code,p.location].some(v=>(v||"").toLowerCase().includes(q))) return false;
     return true;
@@ -901,7 +910,7 @@ function boardItems(useFilters=true){
     if(ar.length){
       for(const a of ar){
         if((p.areaDirect||{})[a.id] && stageOfArea(p,a)===lastStage()) continue;
-        if(useFilters && S.owner && !ownerMatch(a.owner)) continue;
+        if(useFilters && S.owner && !ownerMatch(a.owner, areaOwner2(a))) continue;
         if(q && ![a.name,p.name,p.client,p.code,p.location].some(v=>(v||"").toLowerCase().includes(q))) continue;
         out.push({kind:"area",p,a,stage:stageOfArea(p,a),ord:areaOrd(p,a)});
       }
@@ -914,7 +923,7 @@ function boardItems(useFilters=true){
   return out.sort(bySK("proyectos"));
 }
 function renderFilters(){
-  const owners = [...new Set([...S.cfg.team, ...S.projects.flatMap(p=>[p.owner,...(p.areas||[]).map(a=>a.owner)]).filter(Boolean)])];
+  const owners = [...new Set([...S.cfg.team, ...S.projects.flatMap(p=>[p.owner,...(p.areas||[]).flatMap(a=>[a.owner,a.owner2])]).filter(Boolean)])];
   $("#fOwner").innerHTML = `<option value="">Todos los responsables</option><option value="${NO_OWNER}" ${S.owner===NO_OWNER?"selected":""}>Sin responsable</option>`+owners.map(o=>`<option ${o===S.owner?"selected":""}>${esc(o)}</option>`).join("");
   
 }
@@ -1024,6 +1033,10 @@ function datesHTML(p, done){
   const dueTxt=p.due?(done?fmtDate(p.due):(d<0?`${fmtDate(p.due)} · vencida hace ${-d}d`:(d===0?`${fmtDate(p.due)} · vence hoy`:fmtDate(p.due)))):"—";
   return `<span class="dates"><span class="dt"><span class="dt-l">Inicio</span><span class="dt-v">${p.start?fmtDate(p.start):"—"}</span></span><span class="dt ${cls}"><span class="dt-l">Revisión máx.</span><span class="dt-v">${dueTxt}</span></span></span>`;
 }
+function who2HTML(o1, o2, role){
+  if(!o2) return whoHTML(o1, role);
+  return `<span class="who who2" title="Responsable 1 (mueve la tarjeta): ${esc(o1||"—")} · Responsable 2: ${esc(o2)}"><span class="avs"><span class="av">${esc(initials(o1||"?"))}</span><span class="av av2">${esc(initials(o2))}</span></span><span class="who-t"><span class="who-r">Responsables</span><span class="who-n">${esc(o1||"Sin responsable")}</span><span class="who-n2">${esc(o2)}</span></span></span>`;
+}
 function whoHTML(name, role){ return name?`<span class="who" title="${esc(role||"Responsable")}: ${esc(name)}"><span class="av">${esc(initials(name))}</span><span class="who-t"><span class="who-r">${esc(role||"Responsable")}</span><span class="who-n">${esc(name)}</span></span></span>`:`<span class="who none"><span class="av">?</span><span class="who-t"><span class="who-r">${esc(role||"Responsable")}</span><span class="who-n">Sin responsable</span></span></span>`; }
 const lockedStage = (from,to) => !S.isAdmin && !S.local && from!==to && (to===lastStage() || from===lastStage());
 const APPROVAL_MSG = () => `Solo la administración puede mover a “${lastStage()}”. Pide la revisión a Denisse.`;
@@ -1046,7 +1059,7 @@ function areaCardHTML(p,a){
     <span class="proj">${esc(p.name||"")}</span>
     <span class="name">${esc(a.name)}</span>
     ${corrOf(p,a)&&corrOf(p,a).status!=="revisado"?`<span class="chip cchip">Corrección ${corrOf(p,a).round}: ${esc(cLabel(corrOf(p,a).status))}</span>`:(planOf(p,a)?`<span class="chip rchip">Planos: ${esc(pLabel(planOf(p,a).status))}</span>`:(p.renders||{})[a.id]?`<span class="chip rchip">Renders${(p.renders||{})[a.id].round?` (corr. ${(p.renders||{})[a.id].round})`:""}: ${esc(rLabel((p.renders||{})[a.id].status))}</span>`:"")}
-    ${whoHTML(a.owner)}
+    ${who2HTML(a.owner, areaOwner2(a))}
     ${waitTags(p,a)}
     <span class="meta"><span class="chip part">Área ${idx} de ${ar.length}</span>${prioChip(p,a)}${dueChip(p, stageOfArea(p,a)===lastStage(), a)}</span>
   </button>`;
@@ -1109,7 +1122,7 @@ function render(){
     const list=filtered();
     const sk=p=>(p.start||"")+"|"+(p.createdAt||""); const rows=[...list].sort((a,b)=>sk(b).localeCompare(sk(a)));
     const areasCell = p => { const ar=p.areas||[]; if(!ar.length) return `<div class="la-row"><span class="la-a">${esc(p.stage||"")}</span><span class="la-w">${esc(p.owner||"—")}</span></div>`;
-      return ar.map(a=>{ const n=areaNow(p,a); return `<div class="la-row"><span class="la-a"><span class="pri ${esc(aPrio(p,a))}" title="Prioridad ${esc(aPrio(p,a))}"></span><b>${esc(a.name)}</b>: ${esc(n.cat)} · ${esc(n.phase)}${waitingArea(p,a)?` <span class="hint">(esperando distribución)</span>`:""}</span><span class="la-w">${esc(a.owner||"—")}</span></div>`; }).join(""); };
+      return ar.map(a=>{ const n=areaNow(p,a); return `<div class="la-row"><span class="la-a"><span class="pri ${esc(aPrio(p,a))}" title="Prioridad ${esc(aPrio(p,a))}"></span><b>${esc(a.name)}</b>: ${esc(n.cat)} · ${esc(n.phase)}${waitingArea(p,a)?` <span class="hint">(esperando distribución)</span>`:""}</span><span class="la-w">${esc(a.owner||"—")}${areaOwner2(a)?`<span class="la-w2">${esc(areaOwner2(a))}</span>`:""}</span></div>`; }).join(""); };
     main.innerHTML = `<div class="table-wrap"><table class="ltab"><colgroup><col style="width:8%"><col style="width:17%"><col style="width:35%"><col style="width:15%"><col style="width:25%"></colgroup><thead><tr><th>Fecha de inicio</th><th>Proyecto</th><th>Áreas y fase</th><th>Responsables</th><th>Status</th></tr></thead><tbody>${rows.map(p=>`<tr data-id="${esc(p.id)}"><td class="mono l-date">${p.start?fmtDate(p.start):"—"}</td><td class="l-proj"><span class="pri ${esc(p.priority||"media")}" title="Prioridad ${esc(p.priority||"media")}"></span>${esc(p.name)}</td><td colspan="2" class="la-cell">${areasCell(p)}</td><td class="l-st">${statusHTML(p)}</td></tr>`).join("")||`<tr><td colspan="5">Ningún proyecto coincide con los filtros.</td></tr>`}</tbody></table></div>`;
   }
   refreshProfiles();
@@ -1147,13 +1160,13 @@ function statusHTML(p){
 }
 function areaNow(p,a){
   const pl=planOf(p,a);
-  if(pl && planStatus(pl)!=="encorreccion"){ const st=planStatus(pl); return {cat:"Planos", phase:pLabel(st), owner:pl.owner||"", chip:planDueChip(p,a), kind:"plan", status:st, done:st==="enviado"}; }
+  if(pl && planStatus(pl)!=="encorreccion"){ const st=planStatus(pl); return {cat:"Planos", phase:pLabel(st), owner:pl.owner||"", owner2:own2(pl,a), chip:planDueChip(p,a), kind:"plan", status:st, done:st==="enviado"}; }
   const c=corrOf(p,a);
-  if(c?.round && c.status!=="revisado") return {cat:"Correcciones", phase:cLabel(c.status), owner:c.owner||"", chip:corrDueChip(p,a), kind:"corr", status:c.status, extra:`${c.kind==="distribucion"?"cambio":"corrección"} ${c.round}`};
+  if(c?.round && c.status!=="revisado") return {cat:"Correcciones", phase:cLabel(c.status), owner:c.owner||"", owner2:own2(c,a), chip:corrDueChip(p,a), kind:"corr", status:c.status, extra:`${c.kind==="distribucion"?"cambio":"corrección"} ${c.round}`};
   const r=(p.renders||{})[a.id];
   if(r && r.status!=="encorreccion") return {cat:"Renders", phase:rLabel(r.status), owner:renderOwner(), chip:["aprobado","cliente"].includes(r.status)?"":(r.round?corrDueChip(p,a,false):dueChip(p,false,a)), kind:"render", status:r.status, extra:r.round?`corrección ${r.round}`:""};
   const st=stageOfArea(p,a);
-  return {cat:"Proyectos", phase:st, owner:a.owner||"", chip:dueChip(p, false, a), kind:"area", status:st};
+  return {cat:"Proyectos", phase:st, owner:a.owner||"", owner2:areaOwner2(a), chip:dueChip(p, false, a), kind:"area", status:st};
 }
 function nowSelect(p,a,n){
   const pid=esc(p.id), aid=esc(a.id);
@@ -1175,7 +1188,7 @@ function mineHTML(){
       const n=areaNow(p,a);
       if(n.done) continue;
       const mineNow = n.owner===who;
-      if(!mineNow && a.owner!==who) continue;
+      if(!mineNow && a.owner!==who && n.owner2!==who && areaOwner2(a)!==who) continue;
       items.push({a,n,mineNow, sk:sortKey(p,a,{area:"proyectos",render:"renders",corr:"corr",plan:"planos"}[n.kind]||"proyectos")});
     }
     if(items.length){ items.sort((x,y)=>x.sk.localeCompare(y.sk)); groups.push({p,items,sk:items[0].sk}); }
@@ -1187,7 +1200,7 @@ function mineHTML(){
     <ul class="area-list">${g.items.map(({a,n,mineNow})=>`<li class="area mrow ${cls(n)}">
       <span class="area-n"><b>${esc(a.name)}</b><span class="where">${esc(n.cat)} · ${esc(n.phase)}${n.extra?` · ${esc(n.extra)}`:""}</span>${waitTags(g.p,a)}</span>
       <span class="due-r">${n.chip||""}</span>
-      ${mineNow?nowSelect(g.p,a,n):`<span class="with">Ahora con ${esc(n.owner||"—")}</span>`}
+      ${mineNow?nowSelect(g.p,a,n):n.owner2===who?`<span class="with">Responsable 2 · mueve ${esc(n.owner||"—")}</span>`:`<span class="with">Ahora con ${esc(bothNames(n.owner,n.owner2)||"—")}</span>`}
     </li>`).join("")}</ul></section>`).join("")}</div>`;
 }
 const LEGEND=`<footer class="legend"><span class="lg-t">Leyenda</span>
@@ -1203,7 +1216,8 @@ function areaRow(p,a,adminCtl,chip){
     : `<span class="area-n">${S.view==="mine"?"Diseño · ":""}${esc(a.name)}${ren?` <button type="button" class="rn-btn" data-rename="${esc(a.id)}" title="Cambiar nombre" aria-label="Cambiar nombre de ${esc(a.name)}">✎</button>`:""}</span>`;
   return `<li class="area ${stageClass(s)}">${nameHTML}${chip?`<span class="due-r">${chip}</span>`:""}
     ${adminCtl?`<select class="area-owner" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Responsable de ${esc(a.name)}"><option value="">Sin responsable</option>${S.cfg.team.map(n=>`<option ${n===a.owner?"selected":""}>${esc(n)}</option>`).join("")}</select>`:""}
-    ${!adminCtl&&a.owner&&S.view!=="mine"?`<span class="who-inline"><span class="av">${esc(initials(a.owner))}</span>${esc(a.owner)}</span>`:""}
+    ${adminCtl&&!S.focusArea?`<select class="area-owner2" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Segundo responsable de ${esc(a.name)}" title="Responsable 2 (opcional): ve la tarjeta, pero solo el responsable 1 la mueve"><option value="">Sin 2º responsable</option>${S.cfg.team.filter(n=>n!==a.owner).map(n=>`<option value="${esc(n)}" ${n===a.owner2?"selected":""}>2º: ${esc(n)}</option>`).join("")}</select>`:""}
+    ${!adminCtl&&a.owner&&S.view!=="mine"?`<span class="who-inline"><span class="av">${esc(initials(a.owner))}</span>${esc(bothNames(a.owner,areaOwner2(a)))}</span>`:""}
     ${!adminCtl&&!a.owner?`<span class="chip todo">Sin responsable</span>`:""}
     ${adminCtl&&!S.focusArea?"":`<select class="area-st" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" ${can&&!lockedStage(s,"")||can&&S.isAdmin?"":"disabled"} aria-label="Fase de ${esc(a.name)}">${S.cfg.stages.map(v=>`<option ${v===s?"selected":""} ${v!==s&&lockedStage(s,v)?"disabled":""}>${esc(v)}${v!==s&&lockedStage(s,v)?" (solo administración)":""}</option>`).join("")}</select>`}
     ${adminCtl&&!S.focusArea?`<button type="button" class="dist-t ${isDist(a)?"on":""}" data-disttoggle="${esc(a.id)}" aria-pressed="${isDist(a)}" title="Las distribuciones no pasan a Renders: van directo a Planos">Distribución</button>`:""}
@@ -1400,7 +1414,7 @@ function planItems(){
   for(const p of S.projects){
     for(const a of (p.areas||[])){
       const pl=planOf(p,a); if(!pl||planStatus(pl)==="encorreccion") continue;
-      if(S.owner && !ownerMatch(pl.owner)) continue;
+      if(S.owner && !ownerMatch(pl.owner, own2(pl,a))) continue;
       if(q && ![a.name,p.name,p.client,p.code].some(v=>(v||"").toLowerCase().includes(q))) continue;
       out.push({p,a,pl,status:planStatus(pl)});
     }
@@ -1413,7 +1427,7 @@ function planCardHTML(p,a,pl){
     <span class="proj">${esc(p.name||"")}</span>
     <span class="name">${esc(a.name)}</span>
     ${pl.round?corrChip(pl.round,"distribucion"):""}
-    ${whoHTML(pl.owner)}
+    ${who2HTML(pl.owner, own2(pl,a))}
     ${waitTags(p,a)}
     <span class="meta"><span class="chip part">Planos y detalles</span>${planDueChip(p,a)}${prioChip(p,a)}</span>
   </button>`;
@@ -1490,7 +1504,7 @@ function renderPlanBox(){
   const rows=ar.map(a=>{ const pl=planOf(p,a);
     if(!pl) return S.focusArea?"":`<li class="area s-pendiente"><span class="area-n">${esc(a.name)}</span><span class="hint">Aún no</span>${adm?`<button type="button" class="btn sm" data-planmanual="${esc(a.id)}">Pasar a planos</button>`:""}</li>`;
     return `<li class="area ${PLAN_ADMIN_ST.includes(planStatus(pl))?"s-terminada":planStatus(pl)==="pendiente"?"s-pendiente":"s-proceso"}"><span class="area-n">${esc(a.name)}</span>
-      ${adm?`<select class="plan-owner" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Responsable de planos de ${esc(a.name)}"><option value="">Sin responsable</option>${S.cfg.team.map(n=>`<option ${n===pl.owner?"selected":""}>${esc(n)}</option>`).join("")}</select>`:(pl.owner?`<span class="owner-n">${esc(pl.owner)}</span>`:`<span class="chip todo">Sin responsable</span>`)}
+      ${adm?`<select class="plan-owner" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Responsable de planos de ${esc(a.name)}"><option value="">Sin responsable</option>${S.cfg.team.map(n=>`<option ${n===pl.owner?"selected":""}>${esc(n)}</option>`).join("")}</select><select class="plan-owner2" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Segundo responsable de planos de ${esc(a.name)}"><option value="">Sin 2º responsable</option>${S.cfg.team.filter(n=>n!==pl.owner).map(n=>`<option value="${esc(n)}" ${n===own2(pl,a)?"selected":""}>2º: ${esc(n)}</option>`).join("")}</select>`:(pl.owner?`<span class="owner-n">${esc(bothNames(pl.owner,own2(pl,a)))}</span>`:`<span class="chip todo">Sin responsable</span>`)}
       <select class="plan-st" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" ${planSelectable(p,a,planStatus(pl))?"":"disabled"} aria-label="Estado de planos de ${esc(a.name)}">${PSTAGES.map(([v,l])=>{ const no=v!==planStatus(pl)&&(v==="enviado"||!canMovePlan(p,a,planStatus(pl),v)); return `<option value="${v}" ${v===planStatus(pl)?"selected":""} ${no?"disabled":""}>${l}${no?" (no disponible)":""}</option>`; }).join("")}</select></li>`; }).join("");
   const sec=document.getElementById("planSec"); if(sec) sec.hidden=!rows;
   setHTML(box, rows?`<ul class="area-list">${rows}</ul>`:"");
@@ -1550,7 +1564,7 @@ function corrItems(){
     if(S.type && p.type!==S.type) continue;
     for(const a of (p.areas||[])){
       const c=corrOf(p,a); if(!c||!c.round) continue;
-      if(S.owner && !ownerMatch(c.owner)) continue;
+      if(S.owner && !ownerMatch(c.owner, own2(c,a))) continue;
       if(q && ![a.name,p.name,p.client,p.code,c.notes].some(v=>(v||"").toLowerCase().includes(q))) continue;
       out.push({p,a,c,status:CSTAGES.some(x=>x[0]===c.status)?c.status:"pendiente"});
     }
@@ -1563,7 +1577,7 @@ function corrCardHTML(p,a,c){
     <span class="proj">${esc(p.name||"")}</span>
     <span class="name">${esc(a.name)}</span>
     ${c.notes?`<span class="cnotes">${esc(c.notes)}</span>`:""}
-    ${whoHTML(c.owner)}
+    ${who2HTML(c.owner, own2(c,a))}
     ${waitTags(p,a)}
     <span class="meta">${corrChip(c.round,c.kind||"diseno")}${corrDueChip(p,a)}${prioChip(p,a)}</span>
   </button>`;
@@ -1978,10 +1992,21 @@ document.addEventListener("change",async e=>{
   if(e.target.classList?.contains("place-cat")){ const cat=e.target.value; return placeArea(e.target.dataset.pid,e.target.dataset.aid,cat,placePhases(cat)[0][0]); }
   if(e.target.classList?.contains("place-round")) return setRound(e.target.dataset.pid,e.target.dataset.aid,e.target.dataset.cat,Number(e.target.value));
   if(e.target.classList?.contains("place-st")) return placeArea(e.target.dataset.pid,e.target.dataset.aid,e.target.dataset.cat,e.target.value);
+  if(e.target.classList?.contains("plan-owner2")){
+    const pid=e.target.dataset.pid, aid=e.target.dataset.aid, v=e.target.value; const p=S.projects.find(x=>x.id===pid); const a=(p?.areas||[]).find(x=>x.id===aid); if(!a) return;
+    try{ await S.db.doc("projects/"+pid).update({planosA:{[aid]:{owner2:v}}}); await logAct(pid,"assign",v?`puso a ${v} como 2º responsable de los planos de “${a.name}”`:`quitó el 2º responsable de los planos de “${a.name}”`); }catch(err){ writeErr(err); }
+    return;
+  }
+  if(e.target.classList?.contains("area-owner2")){
+    const pid=e.target.dataset.pid, aid=e.target.dataset.aid, v=e.target.value.replace(/^2º: /,"");
+    const cur=(S.projects.find(x=>x.id===pid)?.areas)||[]; const ar=cur.find(x=>x.id===aid); if(!ar) return;
+    try{ await saveAreas(pid,cur.map(x=>x.id===aid?{...x,owner2:v}:x), v?`puso a ${v} como 2º responsable del área “${ar.name}”`:`quitó el 2º responsable del área “${ar.name}”`); }catch(err){ writeErr(err); }
+    return;
+  }
   if(e.target.classList?.contains("area-owner")){
     const pid=e.target.dataset.pid, aid=e.target.dataset.aid, v=e.target.value;
     const cur=(S.projects.find(x=>x.id===pid)?.areas)||[]; const ar=cur.find(x=>x.id===aid);
-    try{ await saveAreas(pid,cur.map(x=>x.id===aid?{...x,owner:v}:x), ar?(v?`asignó el área “${ar.name}” a ${v}`:`quitó el responsable del área “${ar.name}”`):"");
+    try{ await saveAreas(pid,cur.map(x=>x.id===aid?{...x,owner:v,...(x.owner2===v?{owner2:""}:{})}:x), ar?(v?`asignó el área “${ar.name}” a ${v}`:`quitó el responsable del área “${ar.name}”`):"");
       const p=S.projects.find(x=>x.id===pid); if(p&&ar){ const pl=planOf(p,ar), c=corrOf(p,ar); const patch={};
         if(pl && planStatus(pl)!=="enviado" && pl.owner!==v) patch.planosA={[aid]:{owner:v}};
         else if(!pl && c?.round && c.status!=="revisado" && c.owner!==v) patch.corr={[aid]:{owner:v}};
@@ -2023,7 +2048,7 @@ ${text.slice(0,180000)}`;
     }
     const areas=(Array.isArray(r?.areas)?r.areas:[]).filter(a=>a&&a.nombre).map(a=>({nombre:String(a.nombre).slice(0,80), descripcion:String(a.descripcion||"").slice(0,240), monto:typeof a.monto==="number"?a.monto:null, partidas:Array.isArray(a.partidas)?a.partidas.map(String).slice(0,60):[], owner:""}));
     const prevAreas=(S.projects.find(x=>x.id===B.pid)?.areas)||[];
-    for(const a of areas){ const m=prevAreas.find(x=>x.name.toLowerCase()===a.nombre.toLowerCase()); if(m){ a.owner=m.owner||""; a.id=m.id; } }
+    for(const a of areas){ const m=prevAreas.find(x=>x.name.toLowerCase()===a.nombre.toLowerCase()); if(m){ a.owner=m.owner||""; a.id=m.id; if(m.owner2) a.owner2=m.owner2; if(m.kind) a.kind=m.kind; } }
     B.review={resumen:String(r?.resumen||""), total:typeof r?.total==="number"?r.total:null, areas, entregables:Array.isArray(r?.entregables)?r.entregables.map(String).filter(Boolean).slice(0,30):[], generales:Array.isArray(r?.generales)?r.generales.filter(g=>g&&g.concepto).map(g=>({concepto:String(g.concepto),monto:typeof g.monto==="number"?g.monto:null})):[]};
     B.phase="review"; drawBudget();
   }catch(err){ B.phase=B.doc?"saved":"empty"; drawBudget(); toast(err?.message||"No se pudo leer el PDF."); }
@@ -2056,7 +2081,7 @@ async function budgetAction(a, pid, e){
       await S.db.doc("private/"+pid).set(doc);
       const proj=S.raw.find(x=>x.id===pid);
       if(false && (r.entregables||[]).length && proj){ const have=new Set((proj.tasks||[]).map(t=>t.t.toLowerCase())); const add=r.entregables.filter(t=>!have.has(t.toLowerCase())).map(t=>({t,done:false})); if(add.length) await S.db.doc("projects/"+pid).update({tasks:[...(proj.tasks||[]),...add]}); }
-      await saveAreas(pid, areas.map(x=>({id:x.id,name:x.nombre,owner:x.owner||""})), `${B.doc?"reemplazó":"subió"} el presupuesto aprobado y definió ${areas.length} área${areas.length===1?"":"s"} de diseño`);
+      await saveAreas(pid, areas.map(x=>({id:x.id,name:x.nombre,owner:x.owner||"",...(x.owner2?{owner2:x.owner2}:{}),...(x.kind?{kind:x.kind}:{})})), `${B.doc?"reemplazó":"subió"} el presupuesto aprobado y definió ${areas.length} área${areas.length===1?"":"s"} de diseño`);
       B.doc=doc; B.review=null; B.bytes=null; B.phase="saved"; drawBudget(); toast("Presupuesto guardado");
     }catch(err){ B.phase="review"; drawBudget(); writeErr(err); }
   }
@@ -2257,7 +2282,7 @@ function openProject(p){
     box.innerHTML=`<p class="hint">Toca las áreas que incluye el proyecto y elige su responsable.</p>
       <div class="aa-chips">${list.map(n=>`<button type="button" class="aa-chip ${have.has(n.toLowerCase())?"on":""}" data-newarea="${esc(n)}" aria-pressed="${have.has(n.toLowerCase())}">${have.has(n.toLowerCase())?"✓":"+"} ${esc(n)}</button>`).join("")}</div>
       <div class="add-row"><input id="newAreaN" placeholder="Otra área, ej. Cuarto de máquinas"><button class="btn" type="button" data-act="newAreaAdd">Agregar</button></div>
-      ${newAreas.length?`<ul class="area-list">${newAreas.map((a,i)=>`<li class="area"><span class="area-n">${esc(a.name)}${isFach(a)?` <span class="hint">· va directo a Renders</span>`:isDist(a)?` <span class="hint">· luego pasa directo a Planos</span>`:""}</span><button type="button" class="dist-t ${isDist(a)?"on":""}" data-nadist="${i}" aria-pressed="${isDist(a)}" title="Las distribuciones no pasan a Renders: van directo a Planos">Distribución</button><select class="na-owner" data-i="${i}" id="na-o${i}" aria-label="Responsable de ${esc(a.name)}"><option value="">Sin responsable</option>${S.cfg.team.map(t=>`<option ${t===a.owner?"selected":""}>${esc(t)}</option>`).join("")}</select><input type="number" min="0" step="any" class="na-amt" data-i="${i}" id="na-a${i}" value="${a.monto??""}" placeholder="USD" aria-label="Monto de ${esc(a.name)}"><button type="button" class="x" data-narm="${i}" aria-label="Quitar">×</button></li>`).join("")}</ul>`:""}
+      ${newAreas.length?`<ul class="area-list">${newAreas.map((a,i)=>`<li class="area"><span class="area-n">${esc(a.name)}${isFach(a)?` <span class="hint">· va directo a Renders</span>`:isDist(a)?` <span class="hint">· luego pasa directo a Planos</span>`:""}</span><button type="button" class="dist-t ${isDist(a)?"on":""}" data-nadist="${i}" aria-pressed="${isDist(a)}" title="Las distribuciones no pasan a Renders: van directo a Planos">Distribución</button><select class="na-owner" data-i="${i}" id="na-o${i}" aria-label="Responsable de ${esc(a.name)}"><option value="">Sin responsable</option>${S.cfg.team.map(t=>`<option ${t===a.owner?"selected":""}>${esc(t)}</option>`).join("")}</select><select class="na-owner2" data-i="${i}" id="na-o2${i}" aria-label="Segundo responsable de ${esc(a.name)} (opcional)"><option value="">Sin 2º responsable</option>${S.cfg.team.filter(t=>t!==a.owner).map(t=>`<option value="${esc(t)}" ${t===a.owner2?"selected":""}>2º: ${esc(t)}</option>`).join("")}</select><input type="number" min="0" step="any" class="na-amt" data-i="${i}" id="na-a${i}" value="${a.monto??""}" placeholder="USD" aria-label="Monto de ${esc(a.name)}"><button type="button" class="x" data-narm="${i}" aria-label="Quitar">×</button></li>`).join("")}</ul>`:""}
       <div class="nbudget"><div class="lh">Presupuesto aprobado <small>Privado · solo administración</small></div>
         <p class="hint" style="margin:0">Pon el monto de cada área arriba (opcional) y el total. El total se suma solo, pero puedes cambiarlo.</p>
         <label class="f"><span>Total aprobado (USD)</span><input type="number" min="0" step="any" id="na-total" value="${newBudget.total??""}" placeholder="Ej. 1600"></label>
@@ -2266,7 +2291,7 @@ function openProject(p){
   const drawTasks=()=>{ if(!document.getElementById("tasks")) return; $("#tasks").innerHTML = d.tasks.map((t,i)=>`<div class="task ${t.done?"done":""}"><input type="checkbox" id="tk${i}" data-i="${i}" ${t.done?"checked":""} ${ro} aria-label="Completada"><input type="text" id="tt${i}" data-i="${i}" value="${esc(t.t)}" ${ro} aria-label="Tarea">${can?`<button type="button" class="x" data-rm="${i}" aria-label="Quitar tarea">×</button>`:""}</div>`).join("") || `<p class="hint">Sin tareas. Agrega los entregables de esta fase.</p>`; };
   drawTasks();
   const ov=$("#overlay");
-  ov.onchange=e=>{ if(e.target.classList.contains("na-owner")){ const k=+e.target.dataset.i; if(newAreas[k]) newAreas[k].owner=e.target.value; return; } const i=e.target.dataset.i; if(i!=null && /^tk\d/.test(e.target.id) && d.tasks[i]){ d.tasks[i].done=e.target.checked; drawTasks(); } };
+  ov.onchange=e=>{ if(e.target.classList.contains("na-owner")){ const k=+e.target.dataset.i; if(newAreas[k]){ newAreas[k].owner=e.target.value; if(newAreas[k].owner2===e.target.value){ newAreas[k].owner2=""; } drawNewAreas(); } return; } if(e.target.classList.contains("na-owner2")){ const k=+e.target.dataset.i; if(newAreas[k]) newAreas[k].owner2=e.target.value; return; } const i=e.target.dataset.i; if(i!=null && /^tk\d/.test(e.target.id) && d.tasks[i]){ d.tasks[i].done=e.target.checked; drawTasks(); } };
   ov.oninput=e=>{
     if(e.target.classList.contains("na-amt")){ const k=+e.target.dataset.i; const n=parseFloat(e.target.value); if(newAreas[k]) newAreas[k].monto=isFinite(n)?n:null; if(!newBudget.touched){ newBudget.total=sumNew(); const t=document.getElementById("na-total"); if(t) t.value=newBudget.total??""; } return; }
     if(e.target.id==="na-total"){ const n=parseFloat(e.target.value); newBudget.total=isFinite(n)?n:null; newBudget.touched=e.target.value!==""; return; }
@@ -2333,7 +2358,7 @@ function openProject(p){
       if(isNew && S.isAdmin && !S.local && (newBudget.total!=null || newAreas.some(a=>typeof a.monto==="number"))){
         try{ await S.db.doc("private/"+d.id).set({manual:true, total:newBudget.total, areas:newAreas.map(a=>({id:a.id,nombre:a.name,monto:typeof a.monto==="number"?a.monto:null})), uploadedAt:new Date().toISOString()}); }catch(err){}
       }
-      if(isNew && newAreas.length){ S.assign[d.id]={...(S.assign[d.id]||{owner:"",due:d.due||"",priority:d.priority||"media"}), due:d.due||"", priority:d.priority||"media"}; const savedAreas=newAreas.map(x=>({id:x.id,name:x.name,owner:x.owner||(isFach(x)?renderOwner():"")})); await saveAreas(d.id, savedAreas, `definió ${newAreas.length} área${newAreas.length>1?"s":""} de diseño: ${newAreas.map(x=>x.name+(x.owner?` (${x.owner})`:"")).join(", ")}`); await fachToRenders(d.id, savedAreas); }
+      if(isNew && newAreas.length){ S.assign[d.id]={...(S.assign[d.id]||{owner:"",due:d.due||"",priority:d.priority||"media"}), due:d.due||"", priority:d.priority||"media"}; const savedAreas=newAreas.map(x=>({id:x.id,name:x.name,owner:x.owner||(isFach(x)?renderOwner():""),...(x.owner2&&x.owner2!==x.owner?{owner2:x.owner2}:{})})); await saveAreas(d.id, savedAreas, `definió ${newAreas.length} área${newAreas.length>1?"s":""} de diseño: ${newAreas.map(x=>x.name+(x.owner?` (${bothNames(x.owner,x.owner2&&x.owner2!==x.owner?x.owner2:"")})`:"")).join(", ")}`); await fachToRenders(d.id, savedAreas); }
       if(isNew){ closeDrawer(); setView("board"); toast(`Proyecto “${d.name}” creado`); }
       else { closeDrawer(); toast("Cambios guardados"); }
     }catch(err){ if(btn) btn.disabled=false; writeErr(err); }
@@ -2416,7 +2441,7 @@ async function exportBackup(){
     const prio=v=>(PRIOS.find(x=>x[0]===v)||[,v||""])[1];
     const projRows=[...S.projects].sort((a,b)=>(a.start||"").localeCompare(b.start||"")).map(p=>({"Código":p.code||"","Proyecto":p.name||"","Fecha de inicio":p.start||"","Revisión máxima":p.due||"","Prioridad":prio(p.priority),"Áreas":(p.areas||[]).length,"Status":(statusHTML(p).match(/>([^<]+)</)||[,""])[1]}));
     const areaRows=[]; for(const p of S.projects) for(const a of (p.areas||[])){ const n=areaNow(p,a); const c=corrOf(p,a); const pl=planOf(p,a);
-      areaRows.push({"Proyecto":p.name||"","Área":a.name,"Tipo":isDist(a)?"Distribución":isFach(a)?"Fachada":"","Responsable diseño":a.owner||"","Categoría":n.cat,"Fase":n.phase,"Con quién está":n.owner||"","Correcciones/cambios":c?.round||0,
+      areaRows.push({"Proyecto":p.name||"","Área":a.name,"Tipo":isDist(a)?"Distribución":isFach(a)?"Fachada":"","Responsable diseño":a.owner||"","Responsable 2":areaOwner2(a),"Categoría":n.cat,"Fase":n.phase,"Con quién está":n.owner||"","Correcciones/cambios":c?.round||0,
         "Revisión máx. área":aDue(p,a)||"","Prioridad":prio(aPrio(p,a)),"Responsable planos":pl?.owner||"","Envío máx. planos":pl?(planDatesOf(p,a)?.due||""):"","En espera de distribución":waitingArea(p,a)?"Sí":"","Notas":(p.areaNotes||{})[a.id]||""}); }
     const actRows=[...acts].sort((a,b)=>(b.at||"").localeCompare(a.at||"")).map(a=>({"Fecha":a.at?new Date(a.at).toLocaleString("es-EC"):"","Proyecto":pname(a.pid),"Quién":nameOf(a.by),"Acción":a.text||""}));
     const rawRows=S.raw.map(p=>({"id":p.id,"proyecto":JSON.stringify(p),"asignaciones":JSON.stringify(S.assign[p.id]||{})}));
