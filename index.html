@@ -373,6 +373,10 @@ label.f>span{font-family:var(--f-display);font-weight:600;text-transform:upperca
 #delSlot .confirm{max-width:100%}
 .spin{width:18px;height:18px;border-radius:50%;border:2.5px solid var(--bad-soft);border-top-color:var(--bad);display:inline-block;animation:spin .8s linear infinite;flex:none}
 @keyframes spin{to{transform:rotate(360deg)}}
+.loading-box{display:flex;flex-direction:column;align-items:center;gap:12px}
+.loading-box p{margin:0;color:var(--muted)}
+.spin-big{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);display:inline-block;animation:spin .8s linear infinite}
+@media (prefers-reduced-motion: reduce){.spin-big{animation-duration:2.4s}}
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}}
 .lock{font-size:12px;opacity:.7}
 .st{display:inline-block;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
@@ -436,6 +440,10 @@ label.f>span{font-family:var(--f-display);font-weight:600;text-transform:upperca
 #btnAsk{display:none!important}
 #fbGate{position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;place-items:center;padding:16px}
 #fbGate[hidden]{display:none}
+body{padding-top:env(safe-area-inset-top,0px)}
+#fbGate .fb-wait{display:flex;flex-direction:column;align-items:center;gap:12px;color:var(--muted);font-size:14px}
+#fbGate.checking .fb-card{display:none}
+#fbGate:not(.checking) .fb-wait{display:none}
 .fb-card{width:min(380px,100%);background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--ink);border-radius:var(--r);padding:22px 20px;display:flex;flex-direction:column;gap:12px}
 .fb-card h2{margin:0;font-family:var(--f-display);font-weight:700;text-transform:uppercase;letter-spacing:.02em;font-size:24px;line-height:1.05}
 .fb-card .eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
@@ -464,7 +472,7 @@ label.f>span{font-family:var(--f-display);font-weight:600;text-transform:upperca
 #fbAcc .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 #fbAcc .hint{font-size:12px;color:var(--muted);margin:0}
 </style>
-<div id="fbGate">
+<div id="fbGate" class="checking"><div class="fb-wait" role="status"><img class="fb-logo" src="icon-192.png" alt="" width="96" height="96"><span class="spin-big" aria-hidden="true"></span><span>Cargando…</span></div>
   <form class="fb-card" id="fbForm" autocomplete="on">
     <img class="fb-logo" src="icon-192.png" alt="Logo Denisse Castro Arquitectura" width="96" height="96">
     <div class="eyebrow fb-c">Gestión de proyectos</div>
@@ -627,7 +635,7 @@ async function offerImport(){
 /* ---------- sesión ---------- */
 let started=false;
 onAuthStateChanged(auth, async u => {
-  if(!u){ if(started){ location.reload(); return; } $g("fbGate").hidden=false; $g("fbGo").disabled=false; return; }
+  if(!u){ if(started){ location.reload(); return; } $g("fbGate").hidden=false; $g("fbGate").classList.remove("checking"); $g("fbGo").disabled=false; return; }
   const email=(u.email||"").toLowerCase();
   let access={admins:[],members:[]};
   try{ const s=await getDoc(doc(fs,"config/access")); if(s.exists()) access={admins:[],members:[],...s.data()}; }catch(e){}
@@ -1061,7 +1069,7 @@ function render(){
   $("#btnNew").hidden = !S.isAdmin;
   $("#btnBackup").hidden = !S.isAdmin || S.local || !S.db;
   const main=$("#main");
-  if(!S.ready){ main.innerHTML=`<div class="empty"><p>Cargando proyectos…</p></div>`; return; }
+  if(!S.ready){ main.innerHTML=`<div class="empty loading-box" role="status"><span class="spin-big" aria-hidden="true"></span><p>Cargando proyectos…</p></div>`; return; }
   if(!S.projects.length){
     main.innerHTML=`<div class="empty"><h2>Sin proyectos todavía</h2><p>Cada proyecto que llega al estudio se registra aquí y avanza por las fases: ${S.cfg.stages.map(esc).join(" → ")}. Cada área de diseño es su propia tarjeta. Arrástralas entre columnas para avanzarlas; en el celular, mantén presionada la tarjeta y luego arrástrala.</p>${S.isAdmin?`<button class="btn primary" type="button" data-act="new">+ Registrar el primer proyecto</button>`:""}</div>`;
     return;
