@@ -1049,7 +1049,7 @@ function storedDates(map, since, labelOf){ const out={}; for(const [k,v] of Obje
 function mergeDates(...ds){ const o={}; for(const d of ds) for(const [k,v] of Object.entries(d)) if(v&&(!o[k]||v>o[k])) o[k]=v; return o; }
 function infoProject(p,a){ return {title:`Fases de ${a.name}`, labels:S.cfg.stages, cur:stageOfArea(p,a), dates:stageDates(p,a)}; }
 function infoRenders(p,a){ const r=(p.renders||{})[a.id]; if(!r) return null; const since=r.at||"";
-  const dates=mergeDates(actDates(p,`movió los renders de “${a.name}” de `,since), storedDates(r.stageAt,since,rLabel)); if(dates["En revisión"]&&!dates["Renders listos"]) dates["Renders listos"]=dates["En revisión"]; for(const o of ["Aprobados","Enviados cliente"]) if(dates[o]&&!dates["Revisados cliente"]) dates["Revisados cliente"]=dates[o]; dates[RSTAGES[0][1]]=r.listoAt||dates[RSTAGES[0][1]]||r.at;
+  const dates=mergeDates(actDates(p,`movió los renders de “${a.name}” de `,since), storedDates(r.stageAt,since,rLabel)); if(dates["En revisión"]&&!dates["Renders listos"]) dates["Renders listos"]=dates["En revisión"]; for(const o of ["Aprobados","Enviados cliente"]) if(dates[o]&&!dates["Revisados cliente"]) dates["Revisados cliente"]=dates[o]; dates[RSTAGES[0][1]]=r.listoAt||dates[RSTAGES[0][1]]||r.at; if(r.aprobadoAt) dates[RSTAGES[2][1]]=r.aprobadoAt;
   return {title:`Renders de ${a.name}${r.round?` · corrección ${r.round}`:""}`, labels:RSTAGES.map(x=>x[1]), cur:r.status==="encorreccion"?null:rLabel(r.status), dates, note:r.status==="encorreccion"?"en corrección":""}; }
 function infoCorr(p,a){ const c=corrOf(p,a); if(!c?.round) return null; const since=c.at||"";
   const dates=mergeDates(actDates(p,`movió la corrección ${c.round} de “${a.name}” de `,since), storedDates(c.stageAt,since,cLabel)); if(dates["Corrigiendo"]&&!dates["En proceso"]) dates["En proceso"]=dates["Corrigiendo"]; dates[CSTAGES[0][1]]=dates[CSTAGES[0][1]]||c.at;
@@ -1584,6 +1584,7 @@ const addDays = (iso,n) => { const d=new Date(iso+"T12:00:00"); d.setDate(d.getD
 const CORR_DAYS = 14;
 function corrDatesOf(p,a){ const cd=(p.corrDates||{})[a.id]; const c=corrOf(p,a); if(cd&&cd.round===c?.round) return cd; if(!c?.at) return null; const st=isoDay(c.at); return {start:st, due:addDays(st,CORR_DAYS), round:c.round, auto:true}; }
 function sentToClientBefore(p,a,until){
+  const man=((p.renders||{})[a.id]||{}).aprobadoAt; if(man&&(!until||man<=until)) return man;
   const cands=[]; const st=((p.renders||{})[a.id]||{}).stageAt?.aprobado; if(st) cands.push(st);
   const pref=`movió los renders de “${a.name}” de `;
   for(const act of S.activity){ if(act.pid!==p.id) continue; const t=act.text||""; if(t.startsWith(pref)&&(/ a (Revisados|Enviados) cliente$/.test(t)||/ a Aprobados$/.test(t))) cands.push(act.at); }
@@ -2023,6 +2024,12 @@ document.addEventListener("change",async e=>{
     try{ await savePlanDates(pid,aid,patch); await logAct(pid,"assign",`cambió las fechas de planos de “${a.name}”: inicio ${fmtDate(patch.start)}, envío máximo ${fmtDate(patch.due)}`); toast("Fecha actualizada"); }catch(err){ writeErr(err); }
     return;
   }
+  if(e.target.classList?.contains("rend-apdate")&&S.isAdmin&&e.target.value){
+    const pid=e.target.dataset.pid, aid=e.target.dataset.aid; const p=S.projects.find(x=>x.id===pid); const a=(p?.areas||[]).find(x=>x.id===aid); const r=(p?.renders||{})[aid]; if(!r) return;
+    const iso=e.target.value+"T12:00:00";
+    try{ await S.db.doc("projects/"+pid).update({renders:{[aid]:{aprobadoAt:iso, stageAt:{aprobado:iso}}}}); await logAct(pid,"edit",`cambió la fecha en que “${a?.name||""}” entró a Revisados cliente al ${fmtDate(e.target.value)}`); toast("Fecha guardada"); }catch(err){ writeErr(err); }
+    return;
+  }
   if(e.target.classList?.contains("rend-date")&&S.isAdmin&&e.target.value){
     const pid=e.target.dataset.pid, aid=e.target.dataset.aid; const p=S.projects.find(x=>x.id===pid); const a=(p?.areas||[]).find(x=>x.id===aid); const r=(p?.renders||{})[aid]; if(!r) return;
     const iso=e.target.value+"T12:00:00";
@@ -2283,7 +2290,8 @@ function openProject(p){
         </div>`}
         ${waitingArea(d,fa)?`<div class="waitbox"><span>⏸ Esta área espera a que la distribución pase a Planos. Sus fechas se calcularán desde el día en que se libere.</span>${S.isAdmin&&!S.local?`<button type="button" class="btn sm" data-gonow="${esc(fa.id)}">Empezar sin esperar</button>`:""}</div>`:(d.areaRelease||{})[fa.id]?`<p class="hint" style="margin:0">Liberada el ${fmtDate((d.areaRelease||{})[fa.id])}, cuando la distribución pasó a Planos.</p>`:""}
         ${S.openFrom==="renders"&&(d.renders||{})[fa.id]&&(d.renders||{})[fa.id].status!=="encorreccion"?(()=>{ const r=(d.renders||{})[fa.id]; const v=isoDay(r.listoAt||(r.stageAt||{}).listo||r.at||new Date());
-          return `<label class="f"><span>Listo para renders desde</span><input type="date" class="rend-date" data-pid="${esc(d.id)}" data-aid="${esc(fa.id)}" value="${esc(v)}" ${aro}></label>`; })():""}
+          const ap=["aprobado","cliente"].includes(r.status) ? (r.aprobadoAt||(r.stageAt||{}).aprobado||infoRenders(d,fa)?.dates?.[RSTAGES[2][1]]||"") : null;
+          return `<label class="f"><span>Listo para renders desde</span><input type="date" class="rend-date" data-pid="${esc(d.id)}" data-aid="${esc(fa.id)}" value="${esc(v)}" ${aro}></label>${ap!==null?`<label class="f"><span>Entró a Revisados cliente</span><input type="date" class="rend-apdate" data-pid="${esc(d.id)}" data-aid="${esc(fa.id)}" value="${esc(ap?isoDay(ap):"")}" ${S.isAdmin&&!S.local?"":"disabled"}></label>`:""}`; })():""}
         <div id="stlBox">${focusTimelineHTML(d,fa)}</div>
         ${usePlanDates(d,fa)&&planDueChip(d,fa).includes("late")?`<p class="hint warn-t" style="margin:0">El envío máximo ya está vencido.</p>`:""}${(usePlanDates(d,fa)?false:useCorrDates(d,fa)?corrDueChip(d,fa,false).includes("late"):(!waitingArea(d,fa)&&datesHTML({...d,due:aDue(d,fa)},false).includes("late")))?`<p class="hint warn-t" style="margin:0">La revisión máxima ya está vencida.</p>`:""}
       </div>

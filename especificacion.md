@@ -56,7 +56,7 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
 ### Renders (responsable: Paul)
 - **Columnas:** Listo para renders → Renders listos → Revisados cliente 🔒 → Aprobados clientes 🔒.
 - Paul solo mueve tarjetas entre las dos primeras columnas.
-- Al abrir un área desde Renders, la administración puede cambiar a mano la fecha "Listo para renders desde" (actualiza la línea de fases y el cálculo de "más de 1 semana en Listo para renders").
+- Al abrir un área desde Renders, la administración puede cambiar a mano la fecha "Listo para renders desde" (actualiza la línea de fases y el cálculo de "más de 1 semana en Listo para renders"). Cuando el área ya llegó a Revisados cliente, también puede cambiar a mano la fecha "Entró a Revisados cliente" (actualiza la línea de fases y la fecha "Enviados al cliente" que se ve en las correcciones).
 - **Correcciones:** solo se registran desde Revisados cliente, abriendo la tarjeta desde Renders y si el área todavía no tiene planos. Hay dos botones: Corrección diseño y Corrección renders.
   - **Corrección de diseño:** va a la pestaña Correcciones, con quien diseñó el área.
   - **Corrección de renders:** vuelve directo a Renders con Paul.
