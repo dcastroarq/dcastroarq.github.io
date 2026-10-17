@@ -508,30 +508,26 @@ body{padding-top:env(safe-area-inset-top,0px)}
   window.claude={ use: async name => { const caps=await ready; return caps[name]||null; } };
 })();
 </script>
-<style>
-#fbUpd{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:120;background:var(--ink);color:var(--bg);border:0;border-radius:999px;padding:10px 18px;font:600 14px/1.2 inherit;box-shadow:0 6px 20px rgba(0,0,0,.25);cursor:pointer}
-</style>
-<button type="button" id="fbUpd" hidden>Hay una versión nueva · Actualizar</button>
 <script>
-/* Actualización automática: también funciona desde el ícono del inicio, donde no hay botón de recargar */
+/* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261017091242";
+  const BUILD="20261017091915";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
-  let last=0;
-  async function check(auto){
-    if(Date.now()-last<30000) return; last=Date.now();
+  let pending=null, last=0;
+  const tried=()=>{ try{ return sessionStorage.getItem("dcaTried")||""; }catch(e){ return ""; } };
+  function apply(){ if(!pending||pending===tried()||busy()) return; try{ sessionStorage.setItem("dcaTried",pending); }catch(e){} go(pending); }
+  async function check(){
+    if(Date.now()-last<30000) return apply(); last=Date.now();
     try{ const r=await fetch("version.json?t="+Date.now(),{cache:"no-store"}); if(!r.ok) return; const v=(await r.json()).build;
-      if(!v||v===BUILD) return;
-      let tried=""; try{ tried=sessionStorage.getItem("dcaTried")||""; }catch(e){}
-      if(auto && !busy() && tried!==v){ try{ sessionStorage.setItem("dcaTried",v); }catch(e){} return go(v); }
-      const b=document.getElementById("fbUpd"); b.hidden=false; b.onclick=()=>go(v);
+      if(v && v!==BUILD) pending=v; apply();
     }catch(e){}
   }
-  window.addEventListener("load",()=>setTimeout(()=>check(true),1500));
-  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") check(true); });
-  window.addEventListener("pageshow",e=>{ if(e.persisted) check(true); });
-  setInterval(()=>check(false),5*60*1000);
+  window.addEventListener("load",()=>setTimeout(check,1500));
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") check(); });
+  window.addEventListener("pageshow",e=>{ if(e.persisted) check(); });
+  setInterval(apply,5000);
+  setInterval(check,5*60*1000);
 })();
 </script>
 <script type="module">
