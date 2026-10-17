@@ -380,6 +380,7 @@ label.f>span{font-family:var(--f-display);font-weight:600;text-transform:upperca
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-box{display:flex;flex-direction:column;align-items:center;gap:12px}
 .loading-box p{margin:0;color:var(--muted)}
+.loading-logo{display:block;width:96px;height:96px;border-radius:50%;object-fit:cover;box-shadow:0 0 0 1px var(--line)}
 .spin-big{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);display:inline-block;animation:spin .8s linear infinite}
 @media (prefers-reduced-motion: reduce){.spin-big{animation-duration:2.4s}}
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}}
@@ -1135,7 +1136,7 @@ function render(){
   $("#btnNew").hidden = !S.isAdmin;
   $("#btnBackup").hidden = !S.isAdmin || S.local || !S.db;
   const main=$("#main");
-  if(!S.ready){ main.innerHTML=`<div class="empty loading-box" role="status"><span class="spin-big" aria-hidden="true"></span><p>Cargando proyectos…</p></div>`; return; }
+  if(!S.ready){ main.innerHTML=`<div class="empty loading-box" role="status"><img class="loading-logo" src="icon-192.png" alt="" width="96" height="96" onerror="this.remove()"><span class="spin-big" aria-hidden="true"></span><p>Cargando proyectos…</p></div>`; return; }
   if(!S.projects.length){
     main.innerHTML=`<div class="empty"><h2>Sin proyectos todavía</h2><p>Cada proyecto que llega al estudio se registra aquí y avanza por las fases: ${S.cfg.stages.map(esc).join(" → ")}. Cada área de diseño es su propia tarjeta. Arrástralas entre columnas para avanzarlas; en el celular, mantén presionada la tarjeta y luego arrástrala.</p>${S.isAdmin?`<button class="btn primary" type="button" data-act="new">+ Registrar el primer proyecto</button>`:""}</div>`;
     return;
