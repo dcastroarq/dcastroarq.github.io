@@ -511,7 +511,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261019160959";
+  const BUILD="20261019161123";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -775,6 +775,7 @@ const daysTo = s => s ? Math.round((new Date(s+"T00:00:00") - today())/864e5) : 
 const initials = n => (n||"").trim().split(/\s+/).slice(0,2).map(w=>w[0]?.toUpperCase()||"").join("") || "?";
 const money = n => n ? "$" + Number(n).toLocaleString("es-EC",{maximumFractionDigits:0}) : "";
 const toast = msg => { const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,2200); };
+const stL = s => s==="Por revisar" ? "Por revisar DC" : s;
 const lastStage = () => S.cfg.stages[S.cfg.stages.length-1];
 const hashColor = s => { let h=0; for(const c of String(s||"")) h=(h*31+c.charCodeAt(0))>>>0; return `hsl(${h%360} 45% 40%)`; };
 function when(iso){
@@ -1007,7 +1008,7 @@ function renderStrip(){
   const items=boardItems(false);
   const late = items.filter(x=>{ if(x.kind!=="area") { const d=daysTo(x.p.due); return d!==null&&d<0&&!projectDone(x.p); } const d=daysTo(aDue(x.p,x.a)); return d!==null&&d<0&&x.stage!==lastStage(); }).length;
   const noOwner = items.filter(x=>x.kind==="area"&&!x.a.owner).length;
-  const cells = S.cfg.stages.map(s=>`<div class="cell"><div class="k">${esc(s)}</div><div class="v">${items.filter(x=>x.stage===s).length}</div></div>`);
+  const cells = S.cfg.stages.map(s=>`<div class="cell"><div class="k">${esc(stL(s))}</div><div class="v">${items.filter(x=>x.stage===s).length}</div></div>`);
   cells.push(`<div class="cell ${noOwner?"warn":""}"><div class="k">Sin responsable</div><div class="v">${noOwner}</div></div>`);
   cells.push(`<div class="cell ${late?"alert":""}"><div class="k">Atrasados</div><div class="v">${late}</div></div>`);
   $("#strip").innerHTML = cells.join("");
@@ -1075,17 +1076,17 @@ function infoRenders(p,a){ const r=(p.renders||{})[a.id]; if(!r) return null; co
   const dates=mergeDates(actDates(p,`movió los renders de “${a.name}” de `,since), storedDates(r.stageAt,since,rLabel)); if(dates["En revisión"]&&!dates["Renders listos"]) dates["Renders listos"]=dates["En revisión"]; for(const o of ["Aprobados","Enviados cliente"]) if(dates[o]&&!dates["Revisados cliente"]) dates["Revisados cliente"]=dates[o]; dates[RSTAGES[0][1]]=r.listoAt||dates[RSTAGES[0][1]]||r.at; if(r.aprobadoAt) dates[RSTAGES[2][1]]=r.aprobadoAt;
   return {title:`Renders de ${a.name}${r.round?` · corrección ${r.round}`:""}`, labels:RSTAGES.map(x=>x[1]), cur:r.status==="encorreccion"?null:rLabel(r.status), dates, note:r.status==="encorreccion"?"en corrección":""}; }
 function infoCorr(p,a){ const c=corrOf(p,a); if(!c?.round) return null; const since=c.at||"";
-  const dates=mergeDates(actDates(p,`movió la corrección ${c.round} de “${a.name}” de `,since), storedDates(c.stageAt,since,cLabel)); if(dates["Corrigiendo"]&&!dates["En proceso"]) dates["En proceso"]=dates["Corrigiendo"]; dates[CSTAGES[0][1]]=dates[CSTAGES[0][1]]||c.at;
+  const dates=mergeDates(actDates(p,`movió la corrección ${c.round} de “${a.name}” de `,since), storedDates(c.stageAt,since,cLabel)); if(dates["Corrigiendo"]&&!dates["En proceso"]) dates["En proceso"]=dates["Corrigiendo"]; if(dates["Por revisar"]&&!dates["Por revisar DC"]) dates["Por revisar DC"]=dates["Por revisar"]; dates[CSTAGES[0][1]]=dates[CSTAGES[0][1]]||c.at;
   return {title:`${c.kind==="distribucion"?"Cambio":"Corrección"} ${c.round} · ${kindLabel(c.kind||"diseno")} · ${a.name}`, labels:CSTAGES.map(x=>x[1]), cur:cLabel(c.status), dates}; }
 function infoPlanos(p,a){ const pl=planOf(p,a); if(!pl) return null; const since=pl.at||"";
-  const dates=mergeDates(actDates(p,`movió los planos de “${a.name}” de `,since), storedDates(pl.stageAt,since,pLabel)); for(const [o,n] of [["Dibujando","En proceso"],["En revisión","Por revisar"],["Entregados","Revisado"]]) if(dates[o]&&!dates[n]) dates[n]=dates[o]; dates[PSTAGES[0][1]]=dates[PSTAGES[0][1]]||pl.at;
+  const dates=mergeDates(actDates(p,`movió los planos de “${a.name}” de `,since), storedDates(pl.stageAt,since,pLabel)); for(const [o,n] of [["Dibujando","En proceso"],["En revisión","Por revisar DC"],["Por revisar","Por revisar DC"],["Entregados","Revisado"]]) if(dates[o]&&!dates[n]) dates[n]=dates[o]; dates[PSTAGES[0][1]]=dates[PSTAGES[0][1]]||pl.at;
   return {title:`Planos de ${a.name}`, labels:PSTAGES.map(x=>x[1]), cur:pLabel(planStatus(pl)), dates}; }
 function timelineHTML(info){ if(!info) return "";
   const {title,labels,cur,dates,note}=info; const ci=cur?labels.indexOf(cur):-1;
   return `<div class="stl"><div class="stl-t">${esc(title)}${note?` <span class="hint">· ${esc(note)}</span>`:""}</div><ol class="stl-l">${labels.map((st,i)=>{ const at=dates[st]; const isCur=st===cur; const past=ci>=0&&i<ci;
     const dTxt = at ? fmtDate(isoDay(at)) : (ci>=0&&i<=ci?"—":"pendiente");
     const days = isCur&&at ? Math.max(0,Math.round((today()-new Date(isoDay(at)+"T00:00:00"))/864e5)) : null;
-    return `<li class="${isCur?"cur":past?"past":"next"}"><span class="stl-n">${esc(st)}</span><span class="stl-d">${isCur?"Desde ":""}${dTxt}${days!=null?` · ${days===0?"hoy":days===1?"1 día":days+" días"}`:""}</span></li>`; }).join("")}</ol></div>`;
+    return `<li class="${isCur?"cur":past?"past":"next"}"><span class="stl-n">${esc(stL(st))}</span><span class="stl-d">${isCur?"Desde ":""}${dTxt}${days!=null?` · ${days===0?"hoy":days===1?"1 día":days+" días"}`:""}</span></li>`; }).join("")}</ol></div>`;
 }
 function focusTimelineHTML(p,a){
   const f=S.openFrom;
@@ -1176,7 +1177,7 @@ function render(){
       const smR=splitMoved(its.filter(x=>!toP(x)), toR, "board", "Pasaron a Renders", cardF, pIts.length?"":"Nada en esta fase", x=>stageDates(x.p,x.a)[lastStage()]||(x.p.renders||{})[x.a.id]?.at, "data-area");
       const smP=pIts.length?splitMoved(pIts, ()=>true, "boardP", "Pasaron a Planos", cardF, "", x=>stageDates(x.p,x.a)[lastStage()]||planOf(x.p,x.a)?.at, "data-area"):{n:0,html:""};
       const sm={n:smR.n, html:smR.html+smP.html};
-      return `<section class="col" data-stage="${esc(s)}"><div class="col-h"><h2>${esc(s)}${s===lastStage()?` <span class="lock" title="Solo la administración mueve tarjetas a esta columna">🔒</span>`:""}</h2><span class="n">${sm.n}</span></div><div class="col-b">${sm.html||`<div class="col-empty">Nada en esta fase</div>`}</div></section>`;
+      return `<section class="col" data-stage="${esc(s)}"><div class="col-h"><h2>${esc(stL(s))}${s===lastStage()?` <span class="lock" title="Solo la administración mueve tarjetas a esta columna">🔒</span>`:""}</h2><span class="n">${sm.n}</span></div><div class="col-b">${sm.html||`<div class="col-empty">Nada en esta fase</div>`}</div></section>`;
     }).join("")}${orphanCol(items)}</div></div>`;
     const bw=main.querySelector(".board-wrap"); if(bw) bw.scrollLeft=boardScroll;
     flipPlay(before, dropFlip); dropFlip=null;
@@ -1242,12 +1243,12 @@ function areaNow(p,a){
   const r=(p.renders||{})[a.id];
   if(r && r.status!=="encorreccion") return {cat:"Renders", phase:rLabel(r.status), owner:renderOwner(), chip:["aprobado","cliente"].includes(r.status)?"":(r.round?corrDueChip(p,a,false):dueChip(p,false,a)), kind:"render", status:r.status, extra:r.round?`corrección ${r.round}`:""};
   const st=stageOfArea(p,a);
-  return {cat:"Proyectos", phase:st, owner:a.owner||"", owner2:areaOwner2(a), chip:dueChip(p, false, a), kind:"area", status:st};
+  return {cat:"Proyectos", phase:stL(st), owner:a.owner||"", owner2:areaOwner2(a), chip:dueChip(p, false, a), kind:"area", status:st};
 }
 function nowSelect(p,a,n){
   const pid=esc(p.id), aid=esc(a.id);
   const opts=(list,cur,lock)=>list.map(([v,l])=>`<option value="${esc(v)}" ${v===cur?"selected":""} ${v!==cur&&lock(cur,v)?"disabled":""}>${esc(l)}${v!==cur&&lock(cur,v)?" (solo administración)":""}</option>`).join("");
-  if(n.kind==="area"){ const can=!waitingArea(p,a)&&canEditArea(p,a)&&(S.isAdmin||n.status!==lastStage()); return `<select class="area-st" data-pid="${pid}" data-aid="${aid}" ${can?"":"disabled"} aria-label="Fase de ${esc(a.name)}">${opts(S.cfg.stages.map(x=>[x,x]),n.status,lockedStage)}</select>`; }
+  if(n.kind==="area"){ const can=!waitingArea(p,a)&&canEditArea(p,a)&&(S.isAdmin||n.status!==lastStage()); return `<select class="area-st" data-pid="${pid}" data-aid="${aid}" ${can?"":"disabled"} aria-label="Fase de ${esc(a.name)}">${opts(S.cfg.stages.map(x=>[x,stL(x)]),n.status,lockedStage)}</select>`; }
   if(n.kind==="corr"){ return `<select class="corr-st" data-pid="${pid}" data-aid="${aid}" aria-label="Fase de la corrección de ${esc(a.name)}">${opts(CSTAGES,n.status,(f,t)=>!S.isAdmin&&(t==="revisado"||f==="revisado"))}</select>`; }
   if(n.kind==="render"){ const can=!waitingArea(p,a)&&canEditRender()&&(S.isAdmin||!["aprobado","cliente"].includes(n.status)); return `<select class="render-st" data-pid="${pid}" data-aid="${aid}" ${can?"":"disabled"} aria-label="Fase de renders de ${esc(a.name)}">${opts(RSTAGES,n.status,renderLocked)}</select>`; }
   if(n.kind==="plan"){ const can=planSelectable(p,a,n.status); return `<select class="plan-st" data-pid="${pid}" data-aid="${aid}" ${can?"":"disabled"} aria-label="Fase de planos de ${esc(a.name)}">${opts(PSTAGES,n.status,(f,t)=>t==="enviado"||!canMovePlan(p,a,f,t))}</select>`; }
@@ -1295,7 +1296,7 @@ function areaRow(p,a,adminCtl,chip){
     ${adminCtl&&!S.focusArea?`<select class="area-owner2" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Segundo responsable de ${esc(a.name)}" title="Responsable 2 (opcional): ve la tarjeta, pero solo el responsable 1 la mueve"><option value="">Sin 2º responsable</option>${S.cfg.team.filter(n=>n!==a.owner).map(n=>`<option value="${esc(n)}" ${n===a.owner2?"selected":""}>2º: ${esc(n)}</option>`).join("")}</select>`:""}
     ${!adminCtl&&a.owner&&S.view!=="mine"?`<span class="who-inline"><span class="av">${esc(initials(a.owner))}</span>${esc(bothNames(a.owner,areaOwner2(a)))}</span>`:""}
     ${!adminCtl&&!a.owner?`<span class="chip todo">Sin responsable</span>`:""}
-    ${adminCtl&&!S.focusArea?"":`<select class="area-st" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" ${can&&!lockedStage(s,"")||can&&S.isAdmin?"":"disabled"} aria-label="Fase de ${esc(a.name)}">${S.cfg.stages.map(v=>`<option ${v===s?"selected":""} ${v!==s&&lockedStage(s,v)?"disabled":""}>${esc(v)}${v!==s&&lockedStage(s,v)?" (solo administración)":""}</option>`).join("")}</select>`}
+    ${adminCtl&&!S.focusArea?"":`<select class="area-st" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" ${can&&!lockedStage(s,"")||can&&S.isAdmin?"":"disabled"} aria-label="Fase de ${esc(a.name)}">${S.cfg.stages.map(v=>`<option value="${esc(v)}" ${v===s?"selected":""} ${v!==s&&lockedStage(s,v)?"disabled":""}>${esc(stL(v))}${v!==s&&lockedStage(s,v)?" (solo administración)":""}</option>`).join("")}</select>`}
     ${adminCtl&&!S.focusArea?`<button type="button" class="dist-t ${isDist(a)?"on":""}" data-disttoggle="${esc(a.id)}" aria-pressed="${isDist(a)}" title="Las distribuciones no pasan a Renders: van directo a Planos">Distribución</button>`:""}
     ${adminCtl?`<button type="button" class="x" data-rmarea="${esc(a.id)}" aria-label="Quitar área">×</button>`:""}
     ${adminCtl&&!S.focusArea&&waitingArea(p,a)?`<div class="area-d waitrow"><span class="chip waitc">Esperando distribución</span><button type="button" class="btn sm" data-gonow="${esc(a.id)}">Empezar sin esperar</button></div>`:""}
@@ -1310,7 +1311,7 @@ function areaRow(p,a,adminCtl,chip){
 }
 /* ---------- ubicar un área directamente (vista completa, solo administración) ---------- */
 const PLACE_CATS=["Proyectos","Renders","Correcciones","Planos"];
-const placePhases = cat => cat==="Renders"?RSTAGES:cat==="Correcciones"?CSTAGES:cat==="Planos"?PSTAGES:S.cfg.stages.map(x=>[x,x]);
+const placePhases = cat => cat==="Renders"?RSTAGES:cat==="Correcciones"?CSTAGES:cat==="Planos"?PSTAGES:S.cfg.stages.map(x=>[x,stL(x)]);
 function placerHTML(p,a){ const n=areaNow(p,a); const pid=esc(p.id), aid=esc(a.id);
   return `<div class="placer"><label><span>Categoría</span><select class="place-cat" data-pid="${pid}" data-aid="${aid}" aria-label="Categoría de ${esc(a.name)}">${(isDist(a)?PLACE_CATS.filter(c=>c!=="Renders"):PLACE_CATS).map(c=>`<option ${c===n.cat?"selected":""}>${c}</option>`).join("")}</select></label>
     <label><span>Fase</span><select class="place-st" data-pid="${pid}" data-aid="${aid}" data-cat="${esc(n.cat)}" aria-label="Fase de ${esc(a.name)}">${placePhases(n.cat).map(([v,l])=>`<option value="${esc(v)}" ${v===n.status?"selected":""}>${esc(l)}</option>`).join("")}</select></label>${roundSel(p,a,n)}</div>`; }
@@ -1448,7 +1449,7 @@ function rendersHTML(){
   return `<div class="board-wrap"><div class="board">${RSTAGES.map(([v,l])=>{ const its=items.filter(x=>x.status===v);
     return `<section class="col" data-rstage="${v}"><div class="col-h"><h2>${l}${(v==="cliente"||v==="aprobado")?` <span class="lock" title="Solo la administración mueve tarjetas a esta columna">🔒</span>`:""}</h2>${(()=>{ const sm=splitMoved(its, x=>v==="cliente"&&!!planOf(x.p,x.a), "renders", "Pasaron a Planos", x=>renderCardHTML(x.p,x.a,x.r), "Nada aquí", x=>planOf(x.p,x.a)?.at, "data-render"); return `<span class="n">${sm.n}</span></div><div class="col-b">${sm.html}</div></section>`; })()}`; }).join("")}</div></div>`;
 }
-const PSTAGES=[["pendiente","Por hacer"],["proceso","En proceso"],["porrevisar","Por revisar"],["revisado","Revisado"],["enviado","Enviados a cliente"]];
+const PSTAGES=[["pendiente","Por hacer"],["proceso","En proceso"],["porrevisar","Por revisar DC"],["revisado","Revisado"],["enviado","Enviados a cliente"]];
 const PLAN_ADMIN_ST=["revisado","enviado"];
 const PLAN_DAYS=14;
 const PLAN_OLD={revision:"porrevisar",entregado:"revisado"};
@@ -1597,7 +1598,7 @@ async function setRenderStatus(pid, aid, status){
     if(status==="cliente" && !planOf(p,a)) await createPlano(pid,aid,false);
   }catch(e){ writeErr(e); render(); }
 }
-const CSTAGES=[["pendiente","Por corregir"],["proceso","En proceso"],["porrevisar","Por revisar"],["revisado","Revisado"]];
+const CSTAGES=[["pendiente","Por corregir"],["proceso","En proceso"],["porrevisar","Por revisar DC"],["revisado","Revisado"]];
 const cLabel = s => (CSTAGES.find(x=>x[0]===s)||CSTAGES[0])[1];
 const maxCorr = () => Number(S.cfg.maxCorr)||3;
 const corrOf = (p,a) => (p.corr||{})[a.id] || null;

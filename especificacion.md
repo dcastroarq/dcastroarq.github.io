@@ -45,7 +45,7 @@ Archivo fuente: `tablero-estudio.html` (una sola página HTML) + un puente a Fir
 Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Preguntar (asistente IA con Gemini, gratis por Firebase AI Logic, para todo el equipo: responde sobre los proyectos con los datos del tablero y sobre cómo funciona la página con esta especificación. Nunca recibe montos ni el presupuesto)
 
 ### Proyectos (diseño)
-- **Columnas:** Inicio → En proceso → Por revisar → Revisado 🔒.
+- **Columnas:** Inicio → En proceso → Por revisar DC → Revisado 🔒.
 - Cada área es una tarjeta independiente.
 - **Al llegar a Revisado:**
   - un área normal crea una tarea de Renders para Paul;
@@ -69,7 +69,7 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
   - sin fecha en Revisados cliente ni en Aprobados clientes.
 
 ### Correcciones
-- **Columnas:** Por corregir → En proceso → Por revisar → Revisado 🔒.
+- **Columnas:** Por corregir → En proceso → Por revisar DC → Revisado 🔒.
 - **Fechas:** el inicio es el día del registro y la revisión máxima, 2 semanas después. Solo la administración las cambia.
 - Incluye 3 correcciones por área. Desde la 4 se marcan como "adicional".
 - **Al pasar a Revisado:**
@@ -79,7 +79,7 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
 - El detalle muestra "Enviados al cliente: fecha" solo si esa fecha existe.
 
 ### Planos
-- **Columnas:** Por hacer → En proceso → Por revisar → Revisado 🔒 → Enviados a cliente 🔒.
+- **Columnas:** Por hacer → En proceso → Por revisar DC → Revisado 🔒 → Enviados a cliente 🔒.
 - **Fechas:** el inicio es el día de la aprobación y el envío máximo, 2 semanas después. Solo la administración las cambia.
 - **Revisado:** una tarjeta por proyecto agrupa todas sus áreas: ✓ las revisadas y, en las que faltan, dónde están. Abajo dice "N de M áreas listas" y el envío máximo (el más tardío de sus áreas).
 - **Enviar al cliente:** el proyecto completo pasa a Enviados a cliente solo cuando todas sus áreas están revisadas. No se puede enviar un área sola.
