@@ -511,7 +511,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261017091915";
+  const BUILD="20261019160959";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -1198,7 +1198,7 @@ function render(){
     const list=filtered();
     const sk=p=>(p.start||"")+"|"+(p.createdAt||""); const rows=[...list].sort((a,b)=>sk(b).localeCompare(sk(a)));
     const areasCell = p => { const ar=p.areas||[]; if(!ar.length) return `<div class="la-row"><span class="la-a">${esc(p.stage||"")}</span><span class="la-w">${esc(p.owner||"—")}</span></div>`;
-      return ar.map(a=>{ const n=areaNow(p,a); return `<div class="la-row"><span class="la-a"><span class="pri ${esc(aPrio(p,a))}" title="Prioridad ${esc(aPrio(p,a))}"></span><b>${esc(a.name)}</b>: ${esc(n.cat)} · ${esc(n.phase)}${waitingArea(p,a)?` <span class="hint">(esperando distribución)</span>`:""}</span><span class="la-w">${esc(a.owner||"—")}${areaOwner2(a)?`<span class="la-w2">${esc(areaOwner2(a))}</span>`:""}</span></div>`; }).join(""); };
+      return ar.map(a=>{ const n=areaNow(p,a); return `<div class="la-row"><span class="la-a"><span class="pri ${esc(aPrio(p,a))}" title="Prioridad ${esc(aPrio(p,a))}"></span><b>${esc(a.name)}</b>: ${esc(n.cat)} · ${esc(n.phase)}${waitingArea(p,a)?` <span class="hint">(esperando distribución)</span>`:""}</span><span class="la-w">${n.kind==="render"?esc(renderOwner()||"—"):`${esc(a.owner||"—")}${areaOwner2(a)?`<span class="la-w2">${esc(areaOwner2(a))}</span>`:""}`}</span></div>`; }).join(""); };
     main.innerHTML = `<div class="table-wrap"><table class="ltab"><colgroup><col style="width:8%"><col style="width:17%"><col style="width:35%"><col style="width:15%"><col style="width:25%"></colgroup><thead><tr><th>Fecha de inicio</th><th>Proyecto</th><th>Áreas y fase</th><th>Responsables</th><th>Status</th></tr></thead><tbody>${rows.map(p=>`<tr data-id="${esc(p.id)}"><td class="mono l-date">${p.start?fmtDate(p.start):"—"}</td><td class="l-proj"><span class="pri ${esc(p.priority||"media")}" title="Prioridad ${esc(p.priority||"media")}"></span>${esc(p.name)}</td><td colspan="2" class="la-cell">${areasCell(p)}</td><td class="l-st">${statusHTML(p)}</td></tr>`).join("")||`<tr><td colspan="5">Ningún proyecto coincide con los filtros.</td></tr>`}</tbody></table></div>`;
   }
   refreshProfiles();

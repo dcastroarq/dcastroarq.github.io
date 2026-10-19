@@ -100,7 +100,7 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
 
 ### Lista
 - **Columnas:** Fecha de inicio | Proyecto | Áreas y fase (categoría · fase de cada área) | Responsables | Status.
-- Cada área va en su propia línea, con su responsable (nombre y apellido) en la misma línea, alineado bajo "Responsables". Anchos proporcionales (fecha 8%, proyecto 17%, áreas 35%, responsables 15%, status 25%). En celular cada proyecto se muestra como tarjeta: fecha y proyecto arriba, áreas con su responsable, y el status abajo.
+- Cada área va en su propia línea, con su responsable (nombre y apellido) en la misma línea, alineado bajo "Responsables". Si el área está en Renders, el responsable que se muestra es Paul (en la pestaña Renders la tarjeta sigue mostrando quién diseñó). Anchos proporcionales (fecha 8%, proyecto 17%, áreas 35%, responsables 15%, status 25%). En celular cada proyecto se muestra como tarjeta: fecha y proyecto arriba, áreas con su responsable, y el status abajo.
 - Se ordena por fecha de inicio, con los más recientes arriba.
 - El filtro de responsables incluye "Sin responsable": muestra los proyectos que tienen al menos un área sin asignar (en Proyectos, Correcciones y Planos muestra solo las tarjetas sin responsable).
 - **Puntito de prioridad** junto al proyecto y junto a cada área: rojo alta, amarillo media, gris baja. No hay leyenda.
