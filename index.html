@@ -311,6 +311,9 @@ label.f>span{font-family:var(--f-display);font-weight:600;text-transform:upperca
 .owner-n{font-size:12px;color:var(--muted);margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .acard .owner-n+.av{margin-left:0}
 /* areas, mis tareas, presupuesto */
+.drag-h{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;color:var(--muted);font-size:18px;line-height:1;padding:4px 6px 4px 0;align-self:center}
+.area.dragging{opacity:.7;background:var(--hi-soft);box-shadow:0 4px 14px rgba(0,0,0,.18);position:relative;z-index:2}
+.draft-note{margin:0 0 8px;padding:8px 12px;border:1px dashed var(--hi);border-radius:var(--r);background:var(--hi-soft);font-size:13px;color:var(--ink)}
 .area-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;border:1px solid var(--line-soft);border-radius:var(--r);background:var(--bg)}
 .area{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line-soft);position:relative}
 .area:last-child{border-bottom:0}
@@ -511,7 +514,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261019161123";
+  const BUILD="20261019162444";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -849,7 +852,8 @@ async function saveProject(p, prev, opts={}){
   }
   const {id,owner,due,areas,corrDates,...body} = p;
   const live=S.raw.find(x=>x.id===id); for(const k of ["areaStage","areaOrder","areaStatus","renders","corr","planos","planosA","areaNotes","areaStageAt"]) if(live?.[k]) body[k]=live[k];
-  await S.db.doc("projects/"+id).set(body);
+  if(prev && live){ const up={}; for(const k of ["name","client","type","stage","priority","start","notes","tasks","order","area","budget","location","updatedAt"]) if(k in body) up[k]=body[k]; await S.db.doc("projects/"+id).update(up); }
+  else await S.db.doc("projects/"+id).set(body);
   const prioChanged = S.isAdmin && ((S.assign[id]?.priority||"") !== (p.priority||"media") || (S.assign[id]?.notes??null) !== (p.notes||""));
   if(assignChanged||prioChanged) await S.db.doc("assignments/"+id).set({...(S.assign[id]||{}), owner:owner||"", due:due||"", priority:p.priority||"media", notes:p.notes||"", at:new Date().toISOString()});
   if(!opts.silent) for(const [k,t] of logs) await logAct(id,k,t);
@@ -1291,7 +1295,8 @@ function areaRow(p,a,adminCtl,chip){
   const nameHTML = ren && S.renaming===a.id
     ? `<span class="area-n rn-edit"><input id="rn-${esc(a.id)}" class="rn-in" value="${esc(a.name)}" aria-label="Nuevo nombre de ${esc(a.name)}"><button type="button" class="btn sm primary" data-rnsave="${esc(a.id)}">Guardar</button><button type="button" class="btn sm" data-rncancel="1">Cancelar</button></span>`
     : `<span class="area-n">${S.view==="mine"?"Diseño · ":""}${esc(a.name)}${ren?` <button type="button" class="rn-btn" data-rename="${esc(a.id)}" title="Cambiar nombre" aria-label="Cambiar nombre de ${esc(a.name)}">✎</button>`:""}</span>`;
-  return `<li class="area ${stageClass(s)}">${nameHTML}${chip?`<span class="due-r">${chip}</span>`:""}
+  const drOn=adminCtl&&!S.focusArea&&adraftOn(p.id);
+  return `<li class="area ${stageClass(s)}" data-aid="${esc(a.id)}">${drOn?`<span class="drag-h" data-dragarea="${esc(a.id)}" title="Arrastra para ordenar" aria-hidden="true">⠿</span>`:""}${nameHTML}${chip?`<span class="due-r">${chip}</span>`:""}
     ${adminCtl?`<select class="area-owner" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Responsable de ${esc(a.name)}"><option value="">Sin responsable</option>${S.cfg.team.map(n=>`<option ${n===a.owner?"selected":""}>${esc(n)}</option>`).join("")}</select>`:""}
     ${adminCtl&&!S.focusArea?`<select class="area-owner2" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Segundo responsable de ${esc(a.name)}" title="Responsable 2 (opcional): ve la tarjeta, pero solo el responsable 1 la mueve"><option value="">Sin 2º responsable</option>${S.cfg.team.filter(n=>n!==a.owner).map(n=>`<option value="${esc(n)}" ${n===a.owner2?"selected":""}>2º: ${esc(n)}</option>`).join("")}</select>`:""}
     ${!adminCtl&&a.owner&&S.view!=="mine"?`<span class="who-inline"><span class="av">${esc(initials(a.owner))}</span>${esc(bothNames(a.owner,areaOwner2(a)))}</span>`:""}
@@ -1299,25 +1304,25 @@ function areaRow(p,a,adminCtl,chip){
     ${adminCtl&&!S.focusArea?"":`<select class="area-st" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" ${can&&!lockedStage(s,"")||can&&S.isAdmin?"":"disabled"} aria-label="Fase de ${esc(a.name)}">${S.cfg.stages.map(v=>`<option value="${esc(v)}" ${v===s?"selected":""} ${v!==s&&lockedStage(s,v)?"disabled":""}>${esc(stL(v))}${v!==s&&lockedStage(s,v)?" (solo administración)":""}</option>`).join("")}</select>`}
     ${adminCtl&&!S.focusArea?`<button type="button" class="dist-t ${isDist(a)?"on":""}" data-disttoggle="${esc(a.id)}" aria-pressed="${isDist(a)}" title="Las distribuciones no pasan a Renders: van directo a Planos">Distribución</button>`:""}
     ${adminCtl?`<button type="button" class="x" data-rmarea="${esc(a.id)}" aria-label="Quitar área">×</button>`:""}
-    ${adminCtl&&!S.focusArea&&waitingArea(p,a)?`<div class="area-d waitrow"><span class="chip waitc">Esperando distribución</span><button type="button" class="btn sm" data-gonow="${esc(a.id)}">Empezar sin esperar</button></div>`:""}
+    ${adminCtl&&!S.focusArea&&waitingArea(p,a)?`<div class="area-d waitrow"><span class="chip waitc">Esperando distribución</span>${drOn&&S.adraft.gonow.includes(a.id)?`<span class="hint">Empezará sin esperar al guardar</span>`:`<button type="button" class="btn sm" data-gonow="${esc(a.id)}">Empezar sin esperar</button>`}</div>`:""}
     ${adminCtl&&!S.focusArea?placerHTML(p,a):""}
-    ${adminCtl&&!S.focusArea?`<div class="anotes"><textarea id="an-${esc(a.id)}" rows="2" placeholder="Notas de ${esc(a.name)}">${esc((p.areaNotes||{})[a.id]||"")}</textarea><button type="button" class="btn sm" data-annsave="${esc(a.id)}">Guardar</button></div>`:""}
+    ${adminCtl&&!S.focusArea?`<div class="anotes"><textarea id="an-${esc(a.id)}" rows="2" placeholder="Notas de ${esc(a.name)}" ${drOn?`data-annote="${esc(a.id)}"`:""}>${esc(drOn&&S.adraft.notes[a.id]!=null?S.adraft.notes[a.id]:((p.areaNotes||{})[a.id]||""))}</textarea>${drOn?"":`<button type="button" class="btn sm" data-annsave="${esc(a.id)}">Guardar</button>`}</div>`:""}
     ${S.openFrom==="planos"&&adminCtl&&!S.local&&distCanChange(p,a)?`<div class="corrbox"><div class="corrbox-h"><span>Cambios del cliente</span><span class="hint">${corrOf(p,a)?.round||0} de ${maxCorr()} incluidos</span></div><div class="corrbox-b"><button type="button" class="btn sm" data-corrform="${esc(a.id)}" data-kind="distribucion">Registrar cambio</button></div></div>`:""}
     ${S.openFrom!=="renders"&&S.openFrom!=="corr"?"":adminCtl&&!S.local&&S.openFrom==="renders"&&(p.renders||{})[a.id]?.status==="aprobado"?`<div class="corrbox"><div class="corrbox-h"><span>Correcciones</span><span class="hint">${corrOf(p,a)?.round||0} de ${maxCorr()} incluidas${corrOf(p,a)?.round&&corrOf(p,a).status!=="revisado"?` · en curso: ${esc(cLabel(corrOf(p,a).status))} con ${esc(corrOf(p,a).owner||"—")}`:""}</span></div><div class="corrbox-b"><button type="button" class="btn sm" data-corrform="${esc(a.id)}" data-kind="diseno">Corrección diseño</button><button type="button" class="btn sm" data-corrform="${esc(a.id)}" data-kind="render">Corrección renders</button></div></div>`
       :(corrOf(p,a)?.round?`<span class="hint area-d">${corrOf(p,a).round} corrección${corrOf(p,a).round>1?"es":""} de ${maxCorr()} incluidas${corrOf(p,a).status!=="revisado"?` · en curso: ${esc(cLabel(corrOf(p,a).status))} con ${esc(corrOf(p,a).owner||"—")}`:""}</span>`:"")}
     ${!S.focusArea&&corrOf(p,a)?.round&&corrOf(p,a).status!=="revisado"?(()=>{ const cd=corrDatesOf(p,a); const adm=S.isAdmin&&!S.local;
-      return `<span class="corrdates area-d"><label>Inicio corrección <input type="date" class="corr-date" data-field="start" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" value="${esc(cd?.start||"")}" ${adm?"":"disabled"}></label><label>Revisión máxima <input type="date" class="corr-date" data-field="due" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" value="${esc(cd?.due||"")}" ${adm?"":"disabled"}></label>${corrDueChip(p,a)}</span>`; })():""}
+      return `<span class="corrdates area-d"><label>Inicio corrección <input type="date" class="corr-date" data-field="start" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" value="${esc((adraftOn(p.id)&&S.adraft.cdates[a.id]?.start)||cd?.start||"")}" ${adm?"":"disabled"}></label><label>Revisión máxima <input type="date" class="corr-date" data-field="due" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" value="${esc((adraftOn(p.id)&&S.adraft.cdates[a.id]?.due)||cd?.due||"")}" ${adm?"":"disabled"}></label>${corrDueChip(p,a)}</span>`; })():""}
     ${adminCtl&&S.corrForm===a.id&&((S.openFrom==="renders"&&(p.renders||{})[a.id]?.status==="aprobado"&&!planOf(p,a))||(S.openFrom==="planos"&&distCanChange(p,a)))?corrFormHTML(p,a):""}</li>`;
 }
 /* ---------- ubicar un área directamente (vista completa, solo administración) ---------- */
 const PLACE_CATS=["Proyectos","Renders","Correcciones","Planos"];
 const placePhases = cat => cat==="Renders"?RSTAGES:cat==="Correcciones"?CSTAGES:cat==="Planos"?PSTAGES:S.cfg.stages.map(x=>[x,stL(x)]);
-function placerHTML(p,a){ const n=areaNow(p,a); const pid=esc(p.id), aid=esc(a.id);
+function placerHTML(p,a){ let n=areaNow(p,a); const dp=adraftOn(p.id)?S.adraft.place[a.id]:null; if(dp) n={...n, cat:dp.cat, status:dp.st, _round:dp.round}; const pid=esc(p.id), aid=esc(a.id);
   return `<div class="placer"><label><span>Categoría</span><select class="place-cat" data-pid="${pid}" data-aid="${aid}" aria-label="Categoría de ${esc(a.name)}">${(isDist(a)?PLACE_CATS.filter(c=>c!=="Renders"):PLACE_CATS).map(c=>`<option ${c===n.cat?"selected":""}>${c}</option>`).join("")}</select></label>
     <label><span>Fase</span><select class="place-st" data-pid="${pid}" data-aid="${aid}" data-cat="${esc(n.cat)}" aria-label="Fase de ${esc(a.name)}">${placePhases(n.cat).map(([v,l])=>`<option value="${esc(v)}" ${v===n.status?"selected":""}>${esc(l)}</option>`).join("")}</select></label>${roundSel(p,a,n)}</div>`; }
 function roundSel(p,a,n){
   if(n.cat!=="Correcciones"&&n.cat!=="Renders") return "";
-  const cur = n.cat==="Correcciones" ? (corrOf(p,a)?.round||1) : (((p.renders||{})[a.id]||{}).round||0);
+  const cur = n._round!=null ? n._round : n.cat==="Correcciones" ? (corrOf(p,a)?.round||1) : (((p.renders||{})[a.id]||{}).round||0);
   const max=Math.max(6,cur+1); const opts=[];
   if(n.cat==="Renders") opts.push([0,"Ninguna (primera vez)"]);
   const W=isDist(a)?"Cambio":"Corrección";
@@ -1749,13 +1754,57 @@ async function saveAreaNotes(pid, aid, v){
   await S.db.doc("projects/"+pid).update({areaNotes:{[aid]:v}});
   await logAct(pid,"edit",`actualizó las notas de “${a?.name||""}”`);
 }
+/* ---------- borrador de "Áreas de diseño" (vista completa, administración): nada se graba hasta Guardar ---------- */
+function adraftOn(pid){ return !!(S.adraft && S.adraft.pid===pid && !S.focusArea); }
+function draftFor(p){ if(!S.adraft||S.adraft.pid!==p.id) S.adraft={pid:p.id, areas:structuredClone(p.areas||[]), place:{}, notes:{}, cdates:{}, gonow:[], dirty:false}; return S.adraft; }
+function draftTouch(){ if(S.adraft) S.adraft.dirty=true; renderAreasBox(); }
+async function applyAreaDraft(){
+  const dr=S.adraft; if(!dr||!dr.dirty) return; const pid=dr.pid;
+  const i=S.projects.findIndex(x=>x.id===pid); if(i<0) return; const p=S.projects[i];
+  const before=p.areas||[]; const after=dr.areas; const logs=[]; const ownerCh=[];
+  for(const a of after){ const o=before.find(x=>x.id===a.id);
+    if(!o){ logs.push(`agregó el área “${a.name}”`); continue; }
+    if(o.name!==a.name) logs.push(`cambió el nombre del área “${o.name}” a “${a.name}”`);
+    if(isDist(o)!==isDist(a)) logs.push(isDist(a)?`marcó “${a.name}” como distribución`:`quitó la marca de distribución de “${a.name}”`);
+    if((o.owner||"")!==(a.owner||"")){ logs.push(a.owner?`asignó el área “${a.name}” a ${a.owner}`:`quitó el responsable del área “${a.name}”`); ownerCh.push(a); }
+    if((o.owner2||"")!==(a.owner2||"")) logs.push(a.owner2?`puso a ${a.owner2} como 2º responsable del área “${a.name}”`:`quitó el 2º responsable del área “${a.name}”`);
+  }
+  for(const o of before) if(!after.some(a=>a.id===o.id)) logs.push(`quitó el área “${o.name}”`);
+  const ordB=before.map(x=>x.id).filter(id=>after.some(a=>a.id===id)).join(","), ordA=after.map(x=>x.id).filter(id=>before.some(a=>a.id===id)).join(",");
+  if(ordB!==ordA) logs.push("cambió el orden de las áreas");
+  const added=after.filter(a=>!before.some(o=>o.id===a.id));
+  if(logs.length){
+    await saveAreas(pid, after, "");
+    S.projects[i]={...p, areas:after}; S.assign[pid]={...(S.assign[pid]||{owner:"",due:""}), areas:after};
+    for(const l of logs) await logAct(pid,"assign",l);
+    for(const a of ownerCh){ const pp=S.projects.find(x=>x.id===pid); const pl=planOf(pp,a), c=corrOf(pp,a); const patch={}; const v=a.owner||"";
+      if(pl && planStatus(pl)!=="enviado" && pl.owner!==v) patch.planosA={[a.id]:{owner:v}};
+      else if(!pl && c?.round && c.status!=="revisado" && c.owner!==v) patch.corr={[a.id]:{owner:v}};
+      if(Object.keys(patch).length) await S.db.doc("projects/"+pid).update(patch); }
+    for(const a of added) rememberArea(a.name);
+    const fa=added.filter(a=>isFach(a)); if(fa.length) await fachToRenders(pid, fa);
+  }
+  const alive=id=>after.some(a=>a.id===id);
+  for(const [aid,v] of Object.entries(dr.notes)) if(alive(aid) && v!==((p.areaNotes||{})[aid]||"")) await saveAreaNotes(pid, aid, v);
+  for(const [aid,pl] of Object.entries(dr.place)) if(alive(aid)){ await placeArea(pid, aid, pl.cat, pl.st); if(pl.round!=null) await setRound(pid, aid, pl.cat, pl.round); }
+  for(const [aid,cd] of Object.entries(dr.cdates)) if(alive(aid)){ const pp=S.projects.find(x=>x.id===pid); const a=(pp?.areas||[]).find(x=>x.id===aid); if(!a) continue; const cur=corrDatesOf(pp,a)||{};
+    await saveCorrDates(pid, aid, {start:cd.start||cur.start, due:cd.due||cur.due, round:corrOf(pp,a)?.round||1}); await logAct(pid,"assign",`cambió las fechas de la corrección de “${a.name}”`); }
+  for(const aid of dr.gonow) if(alive(aid)) await startWithoutWaiting(pid, aid);
+  S.adraft=null;
+}
+let areaDrag=null;
+document.addEventListener("pointerdown",e=>{ const h=e.target.closest?.("[data-dragarea]"); if(!h||!S.adraft) return; e.preventDefault(); const li=h.closest("li"); if(!li) return; areaDrag={li, ul:li.parentElement}; li.classList.add("dragging"); try{ h.setPointerCapture(e.pointerId); }catch(_){} });
+document.addEventListener("pointermove",e=>{ if(!areaDrag) return; e.preventDefault(); const {li,ul}=areaDrag; const sibs=[...ul.children].filter(x=>x!==li&&x.dataset.aid); let ref=null; for(const s of sibs){ const r=s.getBoundingClientRect(); if(e.clientY<r.top+r.height/2){ ref=s; break; } } if(ref!==li.nextElementSibling) ul.insertBefore(li, ref); });
+const endDrag=()=>{ if(!areaDrag) return; const {li,ul}=areaDrag; areaDrag=null; li.classList.remove("dragging"); const dr=S.adraft; if(!dr) return; const ids=[...ul.children].map(x=>x.dataset.aid).filter(Boolean); const next=ids.map(id=>dr.areas.find(a=>a.id===id)).filter(Boolean); if(next.length===dr.areas.length && next.some((a,i)=>a.id!==dr.areas[i].id)){ dr.areas=next; draftTouch(); } };
+document.addEventListener("pointerup",endDrag); document.addEventListener("pointercancel",endDrag);
 function renderAreasBox(){
   const box=document.getElementById("areasBox"); if(!box||!S.openId) return;
   const keep=document.getElementById("cf-notes")?.value;
   const p=S.projects.find(x=>x.id===S.openId); if(!p) return;
-  const ar=(p.areas||[]).filter(a=>!S.focusArea||a.id===S.focusArea);
   const admin=S.isAdmin&&!S.local;
-  setHTML(box, (ar.length?`<ul class="area-list">${ar.map(a=>areaRow(p,a,admin)).join("")}</ul>`:`<p class="hint">${admin?"Sube el presupuesto aprobado para que Claude identifique las áreas, o agrégalas a mano. Cada área aparece como su propia tarjeta en el tablero.":"La administradora todavía no ha definido las áreas de diseño."}</p>`)
+  const dr = admin&&!S.focusArea ? draftFor(p) : null;
+  const ar=(dr?dr.areas:(p.areas||[])).filter(a=>!S.focusArea||a.id===S.focusArea);
+  setHTML(box, (dr&&dr.dirty?`<p class="draft-note">Cambios sin guardar. Toca <b>Guardar</b> para aplicarlos o <b>Cancelar</b> para descartarlos.</p>`:"") + (ar.length?`<ul class="area-list">${ar.map(a=>areaRow(p,a,admin)).join("")}</ul>`:`<p class="hint">${admin?"Sube el presupuesto aprobado para que Claude identifique las áreas, o agrégalas a mano. Cada área aparece como su propia tarjeta en el tablero.":"La administradora todavía no ha definido las áreas de diseño."}</p>`)
     + (admin&&!S.focusArea?addAreasHTML(p):""));
   if(keep!=null){ const t=document.getElementById("cf-notes"); if(t) t.value=keep; }
 }
@@ -2073,6 +2122,17 @@ document.addEventListener("change",async e=>{
   if(e.target.classList?.contains("corr-st")) return setCorrStatus(e.target.dataset.pid,e.target.dataset.aid,e.target.value);
   if(e.target.classList?.contains("render-st")) return setRenderStatus(e.target.dataset.pid,e.target.dataset.aid,e.target.value);
   if(e.target.classList?.contains("area-st")) return setAreaStage(e.target.dataset.pid,e.target.dataset.aid,e.target.value);
+  { const ds=e.target.dataset||{}; const cl=e.target.classList;
+    if(ds.pid && adraftOn(ds.pid) && cl && ["place-cat","place-st","place-round","area-owner","area-owner2","corr-date"].some(c=>cl.contains(c))){
+      const dr=S.adraft, aid=ds.aid, v=e.target.value; const ar=dr.areas.find(x=>x.id===aid);
+      if(cl.contains("place-cat")) dr.place[aid]={cat:v, st:placePhases(v)[0][0]};
+      else if(cl.contains("place-st")) dr.place[aid]={...(dr.place[aid]||{cat:ds.cat}), cat:ds.cat, st:v};
+      else if(cl.contains("place-round")){ const p=S.projects.find(x=>x.id===ds.pid); const n=dr.place[aid]||(()=>{ const a=(p?.areas||[]).find(x=>x.id===aid); const nn=a?areaNow(p,a):{}; return {cat:nn.cat, st:nn.status, keep:true}; })(); dr.place[aid]={...n, cat:ds.cat, round:Number(v)}; }
+      else if(cl.contains("area-owner")&&ar){ ar.owner=v; if(ar.owner2===v) ar.owner2=""; }
+      else if(cl.contains("area-owner2")&&ar){ ar.owner2=v; }
+      else if(cl.contains("corr-date")&&v){ dr.cdates[aid]={...(dr.cdates[aid]||{}), [ds.field]:v}; }
+      return draftTouch();
+    } }
   if(e.target.classList?.contains("place-cat")){ const cat=e.target.value; return placeArea(e.target.dataset.pid,e.target.dataset.aid,cat,placePhases(cat)[0][0]); }
   if(e.target.classList?.contains("place-round")) return setRound(e.target.dataset.pid,e.target.dataset.aid,e.target.dataset.cat,Number(e.target.value));
   if(e.target.classList?.contains("place-st")) return placeArea(e.target.dataset.pid,e.target.dataset.aid,e.target.dataset.cat,e.target.value);
@@ -2273,7 +2333,7 @@ ${JSON.stringify(boardSnapshot())}`;
 }
 
 /* ---------- drawers ---------- */
-function closeDrawer(){ S.focusArea=null; S.corrForm=null; S.renaming=null; $("#overlay").innerHTML=""; setEditing(null); B.ctl?.abort(); B.pid=null; B.review=null; B.bytes=null; }
+function closeDrawer(){ S.adraft=null; S.focusArea=null; S.corrForm=null; S.renaming=null; $("#overlay").innerHTML=""; setEditing(null); B.ctl?.abort(); B.pid=null; B.review=null; B.bytes=null; }
 function renderActivity(){
   const box=document.getElementById("actList"); if(!box||!S.openId) return;
   const fp=S.focusArea?S.projects.find(x=>x.id===S.openId):null; const far=fp?(fp.areas||[]).find(x=>x.id===S.focusArea):null; const fnames=far?[far.name,...(far.aliases||[])].filter(Boolean):[];
@@ -2283,6 +2343,7 @@ function renderActivity(){
   if(ob){ const eds=peerEditing(S.openId); ob.hidden=!eds.length; if(eds.length){ ob.style.setProperty("--peer",colorOf(eds[0].uid||eds[0].peer)); ob.textContent=`${eds.map(p=>nameOf(p.uid)).join(", ")} también tiene abierto este proyecto. Si ambos guardan, queda el último cambio.`; } }
 }
 function openProject(p){
+  S.adraft=null;
   const isNew=!p;
   const prev = p ? structuredClone(p) : null;
   const d = p ? structuredClone(p) : { id:newId(), code:nextCode(), name:"", client:"", type:S.cfg.types[0]||"", stage:S.cfg.stages[0], priority:"media", owner:"", start:isoDay(new Date()), due:addDays(isoDay(new Date()),28), area:"", budget:"", location:"", notes:"", tasks:[], createdAt:new Date().toISOString() };
@@ -2385,6 +2446,7 @@ function openProject(p){
   drawTasks();
   const ov=$("#overlay");
   ov.onchange=e=>{ if(e.target.classList.contains("na-owner")){ const k=+e.target.dataset.i; if(newAreas[k]){ newAreas[k].owner=e.target.value; if(newAreas[k].owner2===e.target.value){ newAreas[k].owner2=""; } drawNewAreas(); } return; } if(e.target.classList.contains("na-owner2")){ const k=+e.target.dataset.i; if(newAreas[k]) newAreas[k].owner2=e.target.value; return; } const i=e.target.dataset.i; if(i!=null && /^tk\d/.test(e.target.id) && d.tasks[i]){ d.tasks[i].done=e.target.checked; drawTasks(); } };
+  ov.__annote && ov.removeEventListener("input",ov.__annote); ov.__annote=e=>{ const id=e.target.dataset?.annote; if(!id||!adraftOn(d.id)) return; S.adraft.notes[id]=e.target.value; if(!S.adraft.dirty){ S.adraft.dirty=true; renderAreasBox(); const ta=document.querySelector(`[data-annote="${id}"]`); if(ta){ ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length); } } }; ov.addEventListener("input",ov.__annote);
   ov.oninput=e=>{
     if(e.target.classList.contains("na-amt")){ const k=+e.target.dataset.i; const n=parseFloat(e.target.value); if(newAreas[k]) newAreas[k].monto=isFinite(n)?n:null; if(!newBudget.touched){ newBudget.total=sumNew(); const t=document.getElementById("na-total"); if(t) t.value=newBudget.total??""; } return; }
     if(e.target.id==="na-total"){ const n=parseFloat(e.target.value); newBudget.total=isFinite(n)?n:null; newBudget.touched=e.target.value!==""; return; }
@@ -2409,6 +2471,21 @@ function openProject(p){
       try{ await saveAreaNotes(d.id, aid, (ta?.value||"").trim()); toast("Notas del área guardadas"); }catch(err){ writeErr(err); } finally{ b.disabled=false; } return; }
     if(a==="full"){ S.focusArea=null; const fp=S.projects.find(x=>x.id===d.id); if(fp) openProject(fp); return; }
     if(a==="addTask") addTask();
+    if(adraftOn(d.id)){ const dr=S.adraft; const ds=e.target.dataset;
+      const addN=n=>{ n=(n||"").replace(/\s+/g," ").trim(); if(!n) return; if(dr.areas.some(x=>x.name.toLowerCase()===n.toLowerCase())){ toast(`${n} ya está en el proyecto`); return; } dr.areas.push({id:"a"+newId(), name:n, owner:isFach({name:n})?renderOwner():""}); draftTouch(); };
+      if(a==="addArea"){ const inp=$("#newArea"); const v=inp.value; inp.value=""; addN(v); setTimeout(()=>document.getElementById("newArea")?.focus(),30); return; }
+      if(ds.quickarea){ addN(ds.quickarea); return; }
+      if(ds.gonow&&S.isAdmin){ if(!dr.gonow.includes(ds.gonow)) dr.gonow.push(ds.gonow); draftTouch(); return; }
+      if(ds.rmarea){ dr.areas=dr.areas.filter(x=>x.id!==ds.rmarea); delete dr.place[ds.rmarea]; draftTouch(); return; }
+      if(ds.rnsave&&S.isAdmin){ const aid=ds.rnsave; const ar=dr.areas.find(x=>x.id===aid); if(!ar) return;
+        const nn=(document.getElementById("rn-"+aid)?.value||"").replace(/\s+/g," ").trim();
+        if(!nn){ toast("El nombre no puede quedar vacío."); return; }
+        if(dr.areas.some(x=>x.id!==aid&&x.name.toLowerCase()===nn.toLowerCase())){ toast(`Ya hay un área llamada “${nn}” en este proyecto.`); return; }
+        if(nn!==ar.name){ const orig=(S.projects.find(x=>x.id===d.id)?.areas||[]).find(x=>x.id===aid); ar.kind=kindOf(ar); if(orig) ar.aliases=[...new Set([...(ar.aliases||[]),orig.name])]; ar.name=nn; S.renaming=null; draftTouch(); } else { S.renaming=null; renderAreasBox(); } return; }
+      if(ds.disttoggle&&S.isAdmin){ const ar=dr.areas.find(x=>x.id===ds.disttoggle); if(!ar) return; const was=isDist(ar); let nn=ar.name;
+        if(was){ if(DIST_RE.test(nn+" ")) nn=toggleDistName(nn); } else nn=toggleDistName(nn);
+        ar.name=nn; ar.kind=was?(FACH_RE.test(nn+" ")?"fach":"normal"):"dist"; draftTouch(); return; }
+    }
     if(a==="addArea"){ const inp=$("#newArea"); const v=inp.value.trim(); if(!v) return; rememberArea(v); inp.value=""; await addAreaQuick(d.id,v); setTimeout(()=>document.getElementById("newArea")?.focus(),30); return; }
     if(e.target.dataset.quickarea){ await addAreaQuick(d.id,e.target.dataset.quickarea); return; }
     if(e.target.dataset.gonow&&S.isAdmin){ e.target.disabled=true; try{ await startWithoutWaiting(d.id, e.target.dataset.gonow); closeDrawer(); }catch(err){ e.target.disabled=false; writeErr(err); } return; }
@@ -2440,6 +2517,8 @@ function openProject(p){
   const nt=$("#newTask"); if(nt) nt.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addTask(); } });
   $("#pf").onsubmit=async e=>{
     e.preventDefault();
+    if(!isNew && S.adraft && S.adraft.pid===d.id && S.adraft.dirty){ const sb=document.querySelector('button[type=submit][form=pf]'); if(sb) sb.disabled=true;
+      try{ await applyAreaDraft(); }catch(err){ if(sb) sb.disabled=false; writeErr(err); return; } }
     for(const k of ["client","stage","owner","priority","start","due","notes"]) { const el=document.getElementById("p-"+k); if(el) d[k]=el.value.trim(); }
     if(d.client) d.name=d.client;
     d.tasks=d.tasks.filter(t=>t.t.trim());

@@ -144,6 +144,8 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
   - historial de fases;
   - actividad;
   - Eliminar proyecto.
+- **Áreas de diseño en la vista completa se editan como borrador:** nada se graba hasta tocar **Guardar** (abajo). **Cancelar** o cerrar descarta todo. Mientras hay cambios pendientes aparece el aviso "Cambios sin guardar". Incluye: nombre, responsables, Distribución, quitar o agregar áreas, Categoría/Fase/Corrección, notas, fechas de corrección y "Empezar sin esperar".
+- **Orden manual de las áreas:** se arrastran desde el ícono ⠿ a la izquierda de cada área (funciona con mouse y con el dedo). El orden se usa en "Área N de M", en Lista y en el proyecto completo.
 - **Al cambiar el responsable** en la vista completa, también cambia el responsable de los planos o de la corrección abierta.
 - **Eliminar:** se confirma abajo y luego aparece un indicador de espera. Se borra todo, incluida la actividad.
 
