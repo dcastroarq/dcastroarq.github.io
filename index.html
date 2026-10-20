@@ -529,7 +529,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261020160904";
+  const BUILD="20261020161229";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -1310,8 +1310,6 @@ function mineHTML(){
       <span class="area-n"><b>${esc(a.name)}</b><span class="where">${esc(n.cat)} · ${esc(n.phase)}${n.extra?` · ${esc(n.extra)}`:""}${n.owner2===who?" · Responsable 2":""}</span>${waitTags(p,a)}</span>
       <span class="due-r">${n.chip||""}${(()=>{ const du=catDue(p,a,cat); const lab=cat==="planos"?"Envío máx.":"Revisión máx."; const out=[];
         if(du && daysTo(du)<0) out.push(`${lab} ${fmtDate(du)}`);
-        const manual=(cat==="proyectos"||(cat==="renders"&&!((p.renders||{})[a.id]||{}).round)) && (p.areaDue||{})[a.id] && p.due && (p.areaDue||{})[a.id]!==p.due;
-        if(manual) out.push(`Primera revisión ${fmtDate(p.due)}`);
         return out.map(x=>`<span class="due-sub">${esc(x)}</span>`).join(""); })()}</span>
     </li></ul></section>`).join("")}</div>`;
 }
