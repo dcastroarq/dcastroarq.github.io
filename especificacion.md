@@ -79,7 +79,7 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
 - El detalle muestra "Enviados al cliente: fecha" solo si esa fecha existe.
 
 ### Planos
-- **Columnas:** Por hacer → En proceso → Por revisar DC → Revisado 🔒 → Enviados a cliente 🔒.
+- **Columnas:** Por hacer → En proceso → Por revisar DC → Revisado DC 🔒 → Enviados a cliente 🔒.
 - **Fechas:** el inicio es el día de la aprobación y el envío máximo, 2 semanas después. Solo la administración las cambia.
 - **Revisado:** una tarjeta por proyecto agrupa todas sus áreas: ✓ las revisadas y, en las que faltan, dónde están. Abajo dice "N de M áreas listas" y el envío máximo (el más tardío de sus áreas).
 - **Enviar al cliente:** el proyecto completo pasa a Enviados a cliente solo cuando todas sus áreas están revisadas. No se puede enviar un área sola.

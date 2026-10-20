@@ -528,7 +528,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261020124823";
+  const BUILD="20261020130532";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -1111,7 +1111,7 @@ function infoCorr(p,a){ const c=corrOf(p,a); if(!c?.round) return null; const si
   const dates=mergeDates(actDates(p,`movió la corrección ${c.round} de “${a.name}” de `,since), storedDates(c.stageAt,since,cLabel)); if(dates["Corrigiendo"]&&!dates["En proceso"]) dates["En proceso"]=dates["Corrigiendo"]; if(dates["Por revisar"]&&!dates["Por revisar DC"]) dates["Por revisar DC"]=dates["Por revisar"]; if(dates["Revisado"]&&!dates["Revisado DC"]) dates["Revisado DC"]=dates["Revisado"]; dates[CSTAGES[0][1]]=dates[CSTAGES[0][1]]||c.at;
   return {title:`${c.kind==="distribucion"?"Cambio":"Corrección"} ${c.round} · ${kindLabel(c.kind||"diseno")} · ${a.name}`, labels:CSTAGES.map(x=>x[1]), cur:cLabel(c.status), dates}; }
 function infoPlanos(p,a){ const pl=planOf(p,a); if(!pl) return null; const since=pl.at||"";
-  const dates=mergeDates(actDates(p,`movió los planos de “${a.name}” de `,since), storedDates(pl.stageAt,since,pLabel)); for(const [o,n] of [["Dibujando","En proceso"],["En revisión","Por revisar DC"],["Por revisar","Por revisar DC"],["Entregados","Revisado"]]) if(dates[o]&&!dates[n]) dates[n]=dates[o]; dates[PSTAGES[0][1]]=dates[PSTAGES[0][1]]||pl.at;
+  const dates=mergeDates(actDates(p,`movió los planos de “${a.name}” de `,since), storedDates(pl.stageAt,since,pLabel)); for(const [o,n] of [["Dibujando","En proceso"],["En revisión","Por revisar DC"],["Por revisar","Por revisar DC"],["Revisado","Revisado DC"],["Entregados","Revisado DC"]]) if(dates[o]&&!dates[n]) dates[n]=dates[o]; dates[PSTAGES[0][1]]=dates[PSTAGES[0][1]]||pl.at;
   return {title:`Planos de ${a.name}`, labels:PSTAGES.map(x=>x[1]), cur:pLabel(planStatus(pl)), dates}; }
 function timelineHTML(info){ if(!info) return "";
   const {title,labels,cur,dates,note}=info; const ci=cur?labels.indexOf(cur):-1;
@@ -1482,7 +1482,7 @@ function rendersHTML(){
   return `<div class="board-wrap"><div class="board">${RSTAGES.map(([v,l])=>{ const its=items.filter(x=>x.status===v);
     return `<section class="col" data-rstage="${v}"><div class="col-h"><h2>${l}${(v==="cliente"||v==="aprobado")?` <span class="lock" title="Solo la administración mueve tarjetas a esta columna">🔒</span>`:""}</h2>${(()=>{ const sm=splitMoved(its, x=>v==="cliente"&&!!planOf(x.p,x.a), "renders", "Pasaron a Planos", x=>renderCardHTML(x.p,x.a,x.r), "Nada aquí", x=>planOf(x.p,x.a)?.at, "data-render"); return `<span class="n">${sm.n}</span></div><div class="col-b">${sm.html}</div></section>`; })()}`; }).join("")}</div></div>`;
 }
-const PSTAGES=[["pendiente","Por hacer"],["proceso","En proceso"],["porrevisar","Por revisar DC"],["revisado","Revisado"],["enviado","Enviados a cliente"]];
+const PSTAGES=[["pendiente","Por hacer"],["proceso","En proceso"],["porrevisar","Por revisar DC"],["revisado","Revisado DC"],["enviado","Enviados a cliente"]];
 const PLAN_ADMIN_ST=["revisado","enviado"];
 const PLAN_DAYS=14;
 const PLAN_OLD={revision:"porrevisar",entregado:"revisado"};
@@ -1553,7 +1553,7 @@ function groupDueChip(due){ if(!due) return ""; const d=daysTo(due); const cls=d
 function groupCardHTML(p){ const g=groupInfo(p); const can=(S.isAdmin||S.local||isPlanReviewer())&&g.ready;
   return `<button type="button" class="card pgcard ${can?"":"ro"} ${g.ready?"ready":""}" data-pgroup="${esc(p.id)}" data-open="${esc(p.id)}" style="--band:${esc(projColor(p.id))}">
     <span class="name">${esc(p.name||"Sin nombre")}</span>
-    <ul class="pg-list">${g.rows.map(r=>{ const ok=r.pl&&planDone(r.st); return `<li class="${ok?"ok":""}"><span class="pg-i" aria-hidden="true">${ok?"✓":""}</span><span class="pg-n">${esc(r.a.name)}</span><span class="pg-s">${ok?(r.st==="enviado"?"Enviado":"Revisado"):`${esc(r.now.cat)} · ${esc(r.now.phase)}`}</span></li>`; }).join("")}</ul>
+    <ul class="pg-list">${g.rows.map(r=>{ const ok=r.pl&&planDone(r.st); return `<li class="${ok?"ok":""}"><span class="pg-i" aria-hidden="true">${ok?"✓":""}</span><span class="pg-n">${esc(r.a.name)}</span><span class="pg-s">${ok?(r.st==="enviado"?"Enviado":"Revisado DC"):`${esc(r.now.cat)} · ${esc(r.now.phase)}`}</span></li>`; }).join("")}</ul>
     <span class="pg-sum ${g.ready?"ok":""}">${g.ready?"Todo listo para enviar al cliente":`${g.nOk} de ${g.rows.length} áreas listas`}</span>
     <span class="meta">${groupDueChip(g.due)}${prioChip(p,null)}</span>
   </button>`; }
