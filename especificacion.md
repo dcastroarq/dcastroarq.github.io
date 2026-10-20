@@ -45,7 +45,7 @@ Archivo fuente: `tablero-estudio.html` (una sola página HTML) + un puente a Fir
 Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Preguntar (asistente IA con Gemini, gratis por Firebase AI Logic, para todo el equipo: responde sobre los proyectos con los datos del tablero y sobre cómo funciona la página con esta especificación. Nunca recibe montos ni el presupuesto)
 
 ### Proyectos (diseño)
-- **Columnas:** Inicio → En proceso → Por revisar DC → Revisado 🔒.
+- **Columnas:** Inicio → En proceso → Por revisar DC → Revisado DC 🔒.
 - Cada área es una tarjeta independiente.
 - **Al llegar a Revisado:**
   - un área normal crea una tarea de Renders para Paul;
@@ -69,7 +69,7 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
   - sin fecha en Enviados cliente ni en Aprobados clientes.
 
 ### Correcciones
-- **Columnas:** Por corregir → En proceso → Por revisar DC → Revisado 🔒.
+- **Columnas:** Por corregir → En proceso → Por revisar DC → Revisado DC 🔒.
 - **Fechas:** el inicio es el día del registro y la revisión máxima, 2 semanas después. Solo la administración las cambia.
 - Incluye 3 correcciones por área. Desde la 4 se marcan como "adicional".
 - **Al pasar a Revisado:**
