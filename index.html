@@ -528,7 +528,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261020131105";
+  const BUILD="20261020132454";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -1290,27 +1290,25 @@ function mineHTML(){
   const who = S.isAdmin ? (S.minePerson ?? (myName()||S.cfg.team[0]||"")) : myName();
   const sel = S.isAdmin ? `<label class="f" style="max-width:280px;margin-bottom:12px"><span>Ver tareas de</span><select id="minePerson">${S.cfg.team.map(n=>`<option ${n===who?"selected":""}>${esc(n)}</option>`).join("")}</select></label>` : "";
   if(!who) return `${sel}<div class="empty"><h2>Elige tu nombre</h2><p>Para ver tus tareas, primero elige quién eres en el aviso de arriba.</p></div>`;
-  const groups=[];
+  const isDoneNow = n => (n.kind==="area"&&n.status===lastStage()) || (n.kind==="corr"&&n.status==="revisado") || (n.kind==="plan"&&["revisado","enviado"].includes(n.status)) || (n.kind==="render"&&["aprobado","cliente"].includes(n.status));
+  const tasks=[];
   for(const p of S.projects){
-    const items=[];
     for(const a of (p.areas||[])){
       const n=areaNow(p,a);
-      if(n.done) continue;
-      const mineNow = n.owner===who;
-      if(!mineNow && a.owner!==who && n.owner2!==who && areaOwner2(a)!==who) continue;
-      items.push({a,n,mineNow, sk:sortKey(p,a,{area:"proyectos",render:"renders",corr:"corr",plan:"planos"}[n.kind]||"proyectos")});
+      if(n.done || isDoneNow(n)) continue;
+      if(n.owner!==who && n.owner2!==who) continue;
+      const cat={area:"proyectos",render:"renders",corr:"corr",plan:"planos"}[n.kind]||"proyectos";
+      tasks.push({p,a,n, sk:`${PRANK[aPrio(p,a)]??1}|${sortKey(p,a,cat)}`});
     }
-    if(items.length){ items.sort((x,y)=>x.sk.localeCompare(y.sk)); groups.push({p,items,sk:items[0].sk}); }
   }
-  groups.sort((x,y)=>x.sk.localeCompare(y.sk));
-  if(!groups.length) return `${sel}<div class="empty"><h2>Sin tareas</h2><p>${S.isAdmin&&who!==myName()?esc(who)+" no tiene":"No tienes"} áreas pendientes por ahora.</p></div>`;
-  const cls = n => n.kind==="area"&&n.status===lastStage() || n.status==="revisado" ? "s-terminada" : (n.status===S.cfg.stages[0]||n.status==="pendiente"||n.status==="listo") ? "s-pendiente" : "s-proceso";
-  return `${sel}<div class="mine">${groups.map(g=>`<section class="mine-p" style="--band:${esc(projColor(g.p.id))}"><div class="mine-h"><span class="name">${esc(g.p.name)}</span></div>
-    <ul class="area-list">${g.items.map(({a,n,mineNow})=>`<li class="area mrow ${cls(n)}">
-      <span class="area-n"><b>${esc(a.name)}</b><span class="where">${esc(n.cat)} · ${esc(n.phase)}${n.extra?` · ${esc(n.extra)}`:""}</span>${waitTags(g.p,a)}</span>
+  tasks.sort((x,y)=>x.sk.localeCompare(y.sk));
+  if(!tasks.length) return `${sel}<div class="empty"><h2>Sin tareas</h2><p>${S.isAdmin&&who!==myName()?esc(who)+" no tiene":"No tienes"} áreas pendientes por ahora.</p></div>`;
+  const cls = n => (n.status===S.cfg.stages[0]||n.status==="pendiente"||n.status==="listo") ? "s-pendiente" : "s-proceso";
+  return `${sel}<div class="mine">${tasks.map(({p,a,n})=>`<section class="mine-p" style="--band:${esc(projColor(p.id))}"><div class="mine-h"><span class="name">${esc(p.name)}</span></div>
+    <ul class="area-list"><li class="area mrow ${cls(n)}">
+      <span class="area-n"><b>${esc(a.name)}</b><span class="where">${esc(n.cat)} · ${esc(n.phase)}${n.extra?` · ${esc(n.extra)}`:""}${n.owner2===who?" · Responsable 2":""}</span>${waitTags(p,a)}</span>
       <span class="due-r">${n.chip||""}</span>
-      ${mineNow?nowSelect(g.p,a,n):n.owner2===who?`<span class="with">Responsable 2</span>`:`<span class="with">Ahora con ${esc(bothNames(n.owner,n.owner2)||"—")}</span>`}
-    </li>`).join("")}</ul></section>`).join("")}</div>`;
+    </li></ul></section>`).join("")}</div>`;
 }
 const LEGEND=`<footer class="legend"><span class="lg-t">Leyenda</span>
   <span class="lg-g"><b>Prioridad</b> <span class="lg-i"><span class="pri alta"></span>Alta</span> <span class="lg-i"><span class="pri media"></span>Media</span> <span class="lg-i"><span class="pri baja"></span>Baja</span></span>

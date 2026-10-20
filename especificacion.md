@@ -116,10 +116,11 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
 - Una vez enviado al cliente, la fecha de 4 semanas deja de contar; solo cuentan las de corrección y planos.
 
 ### Mis tareas
-- Una fila por área, agrupada por proyecto (sin código).
-- **Cada fila muestra:** el área, "Categoría · fase" con el número de corrección o cambio, y la fecha de esa fase a la derecha.
-- **Selector de fase:** solo aparece si la tarea es tuya en ese momento. Si no, dice "Ahora con X".
-- Se ordena por fecha y prioridad.
+- Solo muestra las áreas que la persona tiene **en este momento** (como responsable 1 o 2 de la fase actual).
+- No muestra lo que ya está en Revisado DC (Proyectos, Correcciones, Planos), en Enviados a cliente, ni los renders en Enviados cliente o Aprobados clientes.
+- Cada tarea es un bloque: arriba el cliente/proyecto, abajo el área con "Categoría · fase" (y número de corrección o cambio) y la fecha a la derecha. Si la persona es responsable 2, dice "Responsable 2".
+- Sin selector de fase: las fases se mueven desde las tarjetas.
+- Orden: cada tarea por separado, primero por prioridad (alta, media, baja) y luego por fecha.
 
 ## 4. Orden, prioridad y fechas
 - Cada columna se ordena por la fecha de su categoría y luego por prioridad. Nadie puede subir o bajar tarjetas dentro de una columna: solo se mueven entre columnas.
