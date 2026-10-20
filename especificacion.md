@@ -120,6 +120,7 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
 - No muestra lo que ya está en Revisado DC (Proyectos, Correcciones, Planos), en Enviados a cliente, ni los renders en Enviados cliente o Aprobados clientes.
 - Cada tarea es un bloque: arriba el cliente/proyecto, abajo el área con "Categoría · fase" (y número de corrección o cambio) y la fecha a la derecha. Si la persona es responsable 2, dice "Responsable 2".
 - Sin selector de fase: las fases se mueven desde las tarjetas.
+- Fechas: si la fecha está vencida, debajo del aviso "vencida hace Nd" se muestra la fecha (Revisión máx. o Envío máx.). Si la revisión máxima del área se cambió a mano, debajo sale también la "Primera revisión" original del proyecto.
 - Orden: cada tarea por separado, primero por prioridad (alta, media, baja) y luego por fecha.
 
 ## 4. Orden, prioridad y fechas

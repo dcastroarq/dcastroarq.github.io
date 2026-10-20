@@ -337,6 +337,7 @@ label.f>span{font-family:var(--f-display);font-weight:600;text-transform:upperca
 .mine .area>.due-r{grid-column:3;grid-row:1;justify-self:end}
 .mine .area>select{grid-column:2/-1;justify-self:start}
 .due-r .chip{white-space:nowrap}
+.due-r .due-sub{display:block;text-align:right;font-size:12px;color:var(--muted);margin-top:4px;font-family:var(--f-mono)}
 .mrow .area-n{display:flex;flex-direction:column;gap:1px}
 .mrow .area-n b{font-weight:600}
 .where{font-size:12px;color:var(--muted)}
@@ -528,7 +529,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261020140918";
+  const BUILD="20261020160904";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -1298,16 +1299,20 @@ function mineHTML(){
       if(n.done || isDoneNow(n)) continue;
       if(n.owner!==who && n.owner2!==who) continue;
       const cat={area:"proyectos",render:"renders",corr:"corr",plan:"planos"}[n.kind]||"proyectos";
-      tasks.push({p,a,n, sk:`${PRANK[aPrio(p,a)]??1}|${sortKey(p,a,cat)}`});
+      tasks.push({p,a,n,cat, sk:`${PRANK[aPrio(p,a)]??1}|${sortKey(p,a,cat)}`});
     }
   }
   tasks.sort((x,y)=>x.sk.localeCompare(y.sk));
   if(!tasks.length) return `${sel}<div class="empty"><h2>Sin tareas</h2><p>${S.isAdmin&&who!==myName()?esc(who)+" no tiene":"No tienes"} áreas pendientes por ahora.</p></div>`;
   const cls = n => (n.status===S.cfg.stages[0]||n.status==="pendiente"||n.status==="listo") ? "s-pendiente" : "s-proceso";
-  return `${sel}<div class="mine">${tasks.map(({p,a,n})=>`<section class="mine-p" style="--band:${esc(projColor(p.id))}"><div class="mine-h"><span class="name">${esc(p.name)}</span></div>
+  return `${sel}<div class="mine">${tasks.map(({p,a,n,cat})=>`<section class="mine-p" style="--band:${esc(projColor(p.id))}"><div class="mine-h"><span class="name">${esc(p.name)}</span></div>
     <ul class="area-list"><li class="area mrow ${cls(n)}">
       <span class="area-n"><b>${esc(a.name)}</b><span class="where">${esc(n.cat)} · ${esc(n.phase)}${n.extra?` · ${esc(n.extra)}`:""}${n.owner2===who?" · Responsable 2":""}</span>${waitTags(p,a)}</span>
-      <span class="due-r">${n.chip||""}</span>
+      <span class="due-r">${n.chip||""}${(()=>{ const du=catDue(p,a,cat); const lab=cat==="planos"?"Envío máx.":"Revisión máx."; const out=[];
+        if(du && daysTo(du)<0) out.push(`${lab} ${fmtDate(du)}`);
+        const manual=(cat==="proyectos"||(cat==="renders"&&!((p.renders||{})[a.id]||{}).round)) && (p.areaDue||{})[a.id] && p.due && (p.areaDue||{})[a.id]!==p.due;
+        if(manual) out.push(`Primera revisión ${fmtDate(p.due)}`);
+        return out.map(x=>`<span class="due-sub">${esc(x)}</span>`).join(""); })()}</span>
     </li></ul></section>`).join("")}</div>`;
 }
 const LEGEND=`<footer class="legend"><span class="lg-t">Leyenda</span>
