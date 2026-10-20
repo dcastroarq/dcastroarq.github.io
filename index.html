@@ -528,7 +528,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261020120012";
+  const BUILD="20261020124223";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -1105,7 +1105,7 @@ function storedDates(map, since, labelOf){ const out={}; for(const [k,v] of Obje
 function mergeDates(...ds){ const o={}; for(const d of ds) for(const [k,v] of Object.entries(d)) if(v&&(!o[k]||v>o[k])) o[k]=v; return o; }
 function infoProject(p,a){ return {title:`Fases de ${a.name}`, labels:S.cfg.stages, cur:stageOfArea(p,a), dates:stageDates(p,a)}; }
 function infoRenders(p,a){ const r=(p.renders||{})[a.id]; if(!r) return null; const since=r.at||"";
-  const dates=mergeDates(actDates(p,`movió los renders de “${a.name}” de `,since), storedDates(r.stageAt,since,rLabel)); if(dates["En revisión"]&&!dates["Renders listos"]) dates["Renders listos"]=dates["En revisión"]; for(const o of ["Aprobados","Enviados cliente"]) if(dates[o]&&!dates["Revisados cliente"]) dates["Revisados cliente"]=dates[o]; dates[RSTAGES[0][1]]=r.listoAt||dates[RSTAGES[0][1]]||r.at; if(r.aprobadoAt) dates[RSTAGES[2][1]]=r.aprobadoAt;
+  const dates=mergeDates(actDates(p,`movió los renders de “${a.name}” de `,since), storedDates(r.stageAt,since,rLabel)); if(dates["En revisión"]&&!dates["Renders listos"]) dates["Renders listos"]=dates["En revisión"]; for(const o of ["Aprobados","Revisados cliente"]) if(dates[o]&&!dates["Enviados cliente"]) dates["Enviados cliente"]=dates[o]; dates[RSTAGES[0][1]]=r.listoAt||dates[RSTAGES[0][1]]||r.at; if(r.aprobadoAt) dates[RSTAGES[2][1]]=r.aprobadoAt;
   return {title:`Renders de ${a.name}${r.round?` · corrección ${r.round}`:""}`, labels:RSTAGES.map(x=>x[1]), cur:r.status==="encorreccion"?null:rLabel(r.status), dates, note:r.status==="encorreccion"?"en corrección":""}; }
 function infoCorr(p,a){ const c=corrOf(p,a); if(!c?.round) return null; const since=c.at||"";
   const dates=mergeDates(actDates(p,`movió la corrección ${c.round} de “${a.name}” de `,since), storedDates(c.stageAt,since,cLabel)); if(dates["Corrigiendo"]&&!dates["En proceso"]) dates["En proceso"]=dates["Corrigiendo"]; if(dates["Por revisar"]&&!dates["Por revisar DC"]) dates["Por revisar DC"]=dates["Por revisar"]; dates[CSTAGES[0][1]]=dates[CSTAGES[0][1]]||c.at;
@@ -1446,7 +1446,7 @@ async function setAreaStage(pid, aid, stage, before, order){
     }
   }catch(e){ writeErr(e); render(); }
 }
-const RSTAGES=[["listo","Listo para renders"],["revision","Renders listos"],["aprobado","Revisados cliente"],["cliente","Aprobados clientes"]];
+const RSTAGES=[["listo","Listo para renders"],["revision","Renders listos"],["aprobado","Enviados cliente"],["cliente","Aprobados clientes"]];
 const rLabel = s => (RSTAGES.find(x=>x[0]===s)||RSTAGES[0])[1];
 const renderOwner = () => S.cfg.renderOwner || "Paul Moreira";
 function canEditRender(){ if(!S.canWrite) return false; if(S.isAdmin||S.local) return true; return myName()===renderOwner(); }
@@ -1462,7 +1462,7 @@ function renderItems(){
   }
   return out.sort(bySK("renders"));
 }
-const RENDER_LOCK_MSG="Solo la administración puede mover renders a “Revisados cliente” o “Aprobados clientes”.";
+const RENDER_LOCK_MSG="Solo la administración puede mover renders a “Enviados cliente” o “Aprobados clientes”.";
 const renderLocked=(from,to)=>!S.isAdmin&&!S.local&&from!==to&&(["aprobado","cliente"].includes(to)||["aprobado","cliente"].includes(from));
 function renderCardHTML(p,a,r){
   const can=canEditRender() && (S.isAdmin||S.local||!["aprobado","cliente"].includes(r.status)) && !waitingArea(p,a);
@@ -1706,7 +1706,7 @@ function corrHTML(){
 async function startCorrection(pid, aid, notes, owner, kind){
   const p=S.projects.find(x=>x.id===pid); const a=(p?.areas||[]).find(x=>x.id===aid); if(!p||!a) return;
   if(kind==="distribucion"){ if(!distCanChange(p,a)){ toast("Los cambios de distribución se registran cuando está en Planos."); return; } }
-  else if((p.renders||{})[aid]?.status!=="aprobado"){ toast("Las correcciones se registran cuando los renders están en “Revisados cliente”."); return; }
+  else if((p.renders||{})[aid]?.status!=="aprobado"){ toast("Las correcciones se registran cuando los renders están en “Enviados cliente”."); return; }
   kind = kind==="render" ? "render" : kind==="distribucion" ? "distribucion" : "diseno";
   const fach=isFach(a) && kind!=="distribucion";
   if(kind==="render"||fach) owner=renderOwner(); else owner=owner||a.owner||"";
@@ -2128,7 +2128,7 @@ document.addEventListener("change",async e=>{
   if(e.target.classList?.contains("rend-apdate")&&S.isAdmin&&e.target.value){
     const pid=e.target.dataset.pid, aid=e.target.dataset.aid; const p=S.projects.find(x=>x.id===pid); const a=(p?.areas||[]).find(x=>x.id===aid); const r=(p?.renders||{})[aid]; if(!r) return;
     const iso=e.target.value+"T12:00:00";
-    try{ await S.db.doc("projects/"+pid).update({renders:{[aid]:{aprobadoAt:iso, stageAt:{aprobado:iso}}}}); await logAct(pid,"edit",`cambió la fecha en que “${a?.name||""}” entró a Revisados cliente al ${fmtDate(e.target.value)}`); toast("Fecha guardada"); }catch(err){ writeErr(err); }
+    try{ await S.db.doc("projects/"+pid).update({renders:{[aid]:{aprobadoAt:iso, stageAt:{aprobado:iso}}}}); await logAct(pid,"edit",`cambió la fecha en que “${a?.name||""}” entró a Enviados cliente al ${fmtDate(e.target.value)}`); toast("Fecha guardada"); }catch(err){ writeErr(err); }
     return;
   }
   if(e.target.classList?.contains("rend-date")&&S.isAdmin&&e.target.value){
@@ -2404,7 +2404,7 @@ function openProject(p){
         ${waitingArea(d,fa)?`<div class="waitbox"><span>⏸ Esta área espera a que la distribución pase a Planos. Sus fechas se calcularán desde el día en que se libere.</span>${S.isAdmin&&!S.local?`<button type="button" class="btn sm" data-gonow="${esc(fa.id)}">Empezar sin esperar</button>`:""}</div>`:(d.areaRelease||{})[fa.id]?`<p class="hint" style="margin:0">Liberada el ${fmtDate((d.areaRelease||{})[fa.id])}, cuando la distribución pasó a Planos.</p>`:""}
         ${S.openFrom==="renders"&&(d.renders||{})[fa.id]&&(d.renders||{})[fa.id].status!=="encorreccion"?(()=>{ const r=(d.renders||{})[fa.id]; const v=isoDay(r.listoAt||(r.stageAt||{}).listo||r.at||new Date());
           const ap=["aprobado","cliente"].includes(r.status) ? (r.aprobadoAt||(r.stageAt||{}).aprobado||infoRenders(d,fa)?.dates?.[RSTAGES[2][1]]||"") : null;
-          return `<label class="f"><span>Listo para renders desde</span><input type="date" class="rend-date" data-pid="${esc(d.id)}" data-aid="${esc(fa.id)}" value="${esc(v)}" ${aro}></label>${ap!==null?`<label class="f"><span>Entró a Revisados cliente</span><input type="date" class="rend-apdate" data-pid="${esc(d.id)}" data-aid="${esc(fa.id)}" value="${esc(ap?isoDay(ap):"")}" ${S.isAdmin&&!S.local?"":"disabled"}></label>`:""}`; })():""}
+          return `<label class="f"><span>Listo para renders desde</span><input type="date" class="rend-date" data-pid="${esc(d.id)}" data-aid="${esc(fa.id)}" value="${esc(v)}" ${aro}></label>${ap!==null?`<label class="f"><span>Entró a Enviados cliente</span><input type="date" class="rend-apdate" data-pid="${esc(d.id)}" data-aid="${esc(fa.id)}" value="${esc(ap?isoDay(ap):"")}" ${S.isAdmin&&!S.local?"":"disabled"}></label>`:""}`; })():""}
         <div id="stlBox">${focusTimelineHTML(d,fa)}</div>
         ${usePlanDates(d,fa)&&planDueChip(d,fa).includes("late")?`<p class="hint warn-t" style="margin:0">El envío máximo ya está vencido.</p>`:""}${(usePlanDates(d,fa)?false:useCorrDates(d,fa)?corrDueChip(d,fa,false).includes("late"):(!waitingArea(d,fa)&&datesHTML({...d,due:aDue(d,fa)},false).includes("late")))?`<p class="hint warn-t" style="margin:0">La revisión máxima ya está vencida.</p>`:""}
       </div>

@@ -54,10 +54,10 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
 - **Regresar un área desde Revisado** a una fase anterior (solo administración) la saca de Renders, Correcciones y Planos, y vuelve a ser tarjeta de Proyectos.
 
 ### Renders (responsable: Paul)
-- **Columnas:** Listo para renders → Renders listos → Revisados cliente 🔒 → Aprobados clientes 🔒.
+- **Columnas:** Listo para renders → Renders listos → Enviados cliente 🔒 → Aprobados clientes 🔒.
 - Paul solo mueve tarjetas entre las dos primeras columnas.
-- Al abrir un área desde Renders, la administración puede cambiar a mano la fecha "Listo para renders desde" (actualiza la línea de fases y el cálculo de "más de 1 semana en Listo para renders"). Cuando el área ya llegó a Revisados cliente, también puede cambiar a mano la fecha "Entró a Revisados cliente" (actualiza la línea de fases y la fecha "Enviados al cliente" que se ve en las correcciones).
-- **Correcciones:** solo se registran desde Revisados cliente, abriendo la tarjeta desde Renders y si el área todavía no tiene planos. Hay dos botones: Corrección diseño y Corrección renders.
+- Al abrir un área desde Renders, la administración puede cambiar a mano la fecha "Listo para renders desde" (actualiza la línea de fases y el cálculo de "más de 1 semana en Listo para renders"). Cuando el área ya llegó a Enviados cliente, también puede cambiar a mano la fecha "Entró a Enviados cliente" (actualiza la línea de fases y la fecha "Enviados al cliente" que se ve en las correcciones).
+- **Correcciones:** solo se registran desde Enviados cliente, abriendo la tarjeta desde Renders y si el área todavía no tiene planos. Hay dos botones: Corrección diseño y Corrección renders.
   - **Corrección de diseño:** va a la pestaña Correcciones, con quien diseñó el área.
   - **Corrección de renders:** vuelve directo a Renders con Paul.
   - **Fachadas:** cualquier corrección, sea de diseño o de renders, vuelve directo a Renders con Paul.
@@ -66,7 +66,7 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
   - las fachadas, por defecto para Daniela Molina (se puede cambiar).
 - **Fechas en la tarjeta:**
   - "Revisión máx." del proyecto en la primera vuelta, y la de la corrección después de una corrección;
-  - sin fecha en Revisados cliente ni en Aprobados clientes.
+  - sin fecha en Enviados cliente ni en Aprobados clientes.
 
 ### Correcciones
 - **Columnas:** Por corregir → En proceso → Por revisar DC → Revisado 🔒.
