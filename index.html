@@ -531,7 +531,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261020162018";
+  const BUILD="20261020163058";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -1318,7 +1318,7 @@ function mineHTML(){
         return out.map(x=>`<span class="due-sub">${esc(x)}</span>`).join(""); })()}</span>
     </li></ul></section>`;
   const sec=(title,list)=>list.length?`<div class="mine-sec">${esc(title)} <span>${list.length}</span></div>${list.map(card).join("")}`:"";
-  return `${sel}<div class="mine">${who===REVIEWER?sec("Por aprobar",appr)+sec("Mis áreas",tasks):tasks.map(card).join("")}</div>`;
+  return `${sel}<div class="mine">${who===REVIEWER?sec("Mis tareas",tasks)+sec("Por aprobar",appr):tasks.map(card).join("")}</div>`;
 }
 const LEGEND=`<footer class="legend"><span class="lg-t">Leyenda</span>
   <span class="lg-g"><b>Prioridad</b> <span class="lg-i"><span class="pri alta"></span>Alta</span> <span class="lg-i"><span class="pri media"></span>Media</span> <span class="lg-i"><span class="pri baja"></span>Baja</span></span>
