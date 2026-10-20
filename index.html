@@ -528,7 +528,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261020132454";
+  const BUILD="20261020134428";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -1324,7 +1324,7 @@ function areaRow(p,a,adminCtl,chip){
   const drOn=adminCtl&&!S.focusArea&&adraftOn(p.id);
   return `<li class="area ${stageClass(s)}" data-aid="${esc(a.id)}">${drOn?`<span class="drag-h" data-dragarea="${esc(a.id)}" title="Arrastra para ordenar" aria-hidden="true">⠿</span>`:""}${nameHTML}${chip?`<span class="due-r">${chip}</span>`:""}
     ${adminCtl?`<select class="area-owner" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Responsable de ${esc(a.name)}"><option value="">Sin responsable</option>${S.cfg.team.map(n=>`<option ${n===a.owner?"selected":""}>${esc(n)}</option>`).join("")}</select>`:""}
-    ${adminCtl&&!S.focusArea?`<select class="area-owner2" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Segundo responsable de ${esc(a.name)}" title="Responsable 2 (opcional): ve la tarjeta, pero solo el responsable 1 la mueve"><option value="">Sin 2º responsable</option>${S.cfg.team.filter(n=>n!==a.owner).map(n=>`<option value="${esc(n)}" ${n===a.owner2?"selected":""}>2º: ${esc(n)}</option>`).join("")}</select>`:""}
+    ${adminCtl?`<select class="area-owner2" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Segundo responsable de ${esc(a.name)}" title="Responsable 2 (opcional): ve la tarjeta, pero solo el responsable 1 la mueve"><option value="">Sin 2º responsable</option>${S.cfg.team.filter(n=>n!==a.owner).map(n=>`<option value="${esc(n)}" ${n===a.owner2?"selected":""}>2º: ${esc(n)}</option>`).join("")}</select>`:""}
     ${!adminCtl&&a.owner&&S.view!=="mine"?`<span class="who-inline"><span class="av">${esc(initials(a.owner))}</span>${esc(bothNames(a.owner,areaOwner2(a)))}</span>`:""}
     ${!adminCtl&&!a.owner?`<span class="chip todo">Sin responsable</span>`:""}
     ${adminCtl&&!S.focusArea?"":`<select class="area-st" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" ${can&&!lockedStage(s,"")||can&&S.isAdmin?"":"disabled"} aria-label="Fase de ${esc(a.name)}">${S.cfg.stages.map(v=>`<option value="${esc(v)}" ${v===s?"selected":""} ${v!==s&&lockedStage(s,v)?"disabled":""}>${esc(stL(v))}${v!==s&&lockedStage(s,v)?" (solo administración)":""}</option>`).join("")}</select>`}
@@ -1613,7 +1613,7 @@ function renderPlanBox(){
   const rows=ar.map(a=>{ const pl=planOf(p,a);
     if(!pl) return S.focusArea?"":`<li class="area s-pendiente"><span class="area-n">${esc(a.name)}</span><span class="hint">Aún no</span>${adm?`<button type="button" class="btn sm" data-planmanual="${esc(a.id)}">Pasar a planos</button>`:""}</li>`;
     return `<li class="area ${PLAN_ADMIN_ST.includes(planStatus(pl))?"s-terminada":planStatus(pl)==="pendiente"?"s-pendiente":"s-proceso"}"><span class="area-n">${esc(a.name)}</span>
-      ${adm?`<select class="plan-owner" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Responsable de planos de ${esc(a.name)}"><option value="">Sin responsable</option>${S.cfg.team.map(n=>`<option ${n===pl.owner?"selected":""}>${esc(n)}</option>`).join("")}</select><select class="plan-owner2" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Segundo responsable de planos de ${esc(a.name)}"><option value="">Sin 2º responsable</option>${S.cfg.team.filter(n=>n!==pl.owner).map(n=>`<option value="${esc(n)}" ${n===own2(pl,a)?"selected":""}>2º: ${esc(n)}</option>`).join("")}</select>`:(pl.owner?`<span class="owner-n">${esc(bothNames(pl.owner,own2(pl,a)))}</span>`:`<span class="chip todo">Sin responsable</span>`)}
+      ${adm&&!S.focusArea?`<select class="plan-owner" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Responsable de planos de ${esc(a.name)}"><option value="">Sin responsable</option>${S.cfg.team.map(n=>`<option ${n===pl.owner?"selected":""}>${esc(n)}</option>`).join("")}</select><select class="plan-owner2" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Segundo responsable de planos de ${esc(a.name)}"><option value="">Sin 2º responsable</option>${S.cfg.team.filter(n=>n!==pl.owner).map(n=>`<option value="${esc(n)}" ${n===own2(pl,a)?"selected":""}>2º: ${esc(n)}</option>`).join("")}</select>`:(pl.owner?`<span class="owner-n">${esc(bothNames(pl.owner,own2(pl,a)))}</span>`:`<span class="chip todo">Sin responsable</span>`)}
       <select class="plan-st" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" ${planSelectable(p,a,planStatus(pl))?"":"disabled"} aria-label="Estado de planos de ${esc(a.name)}">${PSTAGES.map(([v,l])=>{ const no=v!==planStatus(pl)&&(v==="enviado"||!canMovePlan(p,a,planStatus(pl),v)); return `<option value="${v}" ${v===planStatus(pl)?"selected":""} ${no?"disabled":""}>${l}${no?" (no disponible)":""}</option>`; }).join("")}</select></li>`; }).join("");
   const sec=document.getElementById("planSec"); if(sec) sec.hidden=!rows;
   setHTML(box, rows?`<ul class="area-list">${rows}</ul>`:"");
@@ -1788,12 +1788,13 @@ function draftTouch(){ if(S.adraft) S.adraft.dirty=true; renderAreasBox(); }
 async function applyAreaDraft(){
   const dr=S.adraft; if(!dr||!dr.dirty) return; const pid=dr.pid;
   const i=S.projects.findIndex(x=>x.id===pid); if(i<0) return; const p=S.projects[i];
-  const before=p.areas||[]; const after=dr.areas; const logs=[]; const ownerCh=[];
+  const before=p.areas||[]; const after=dr.areas; const logs=[]; const ownerCh=[]; const o2Ch=[];
   for(const a of after){ const o=before.find(x=>x.id===a.id);
     if(!o){ logs.push(`agregó el área “${a.name}”`); continue; }
     if(o.name!==a.name) logs.push(`cambió el nombre del área “${o.name}” a “${a.name}”`);
     if(isDist(o)!==isDist(a)) logs.push(isDist(a)?`marcó “${a.name}” como distribución`:`quitó la marca de distribución de “${a.name}”`);
     if((o.owner||"")!==(a.owner||"")){ logs.push(a.owner?`asignó el área “${a.name}” a ${a.owner}`:`quitó el responsable del área “${a.name}”`); ownerCh.push(a); }
+    if((o.owner2||"")!==(a.owner2||"")) o2Ch.push(a);
     if((o.owner2||"")!==(a.owner2||"")) logs.push(a.owner2?`puso a ${a.owner2} como 2º responsable del área “${a.name}”`:`quitó el 2º responsable del área “${a.name}”`);
   }
   for(const o of before) if(!after.some(a=>a.id===o.id)) logs.push(`quitó el área “${o.name}”`);
@@ -1806,7 +1807,11 @@ async function applyAreaDraft(){
     for(const l of logs) await logAct(pid,"assign",l);
     for(const a of ownerCh){ const pp=S.projects.find(x=>x.id===pid); const pl=planOf(pp,a), c=corrOf(pp,a); const patch={}; const v=a.owner||"";
       if(pl && planStatus(pl)!=="enviado" && pl.owner!==v) patch.planosA={[a.id]:{owner:v}};
-      else if(!pl && c?.round && c.status!=="revisado" && c.owner!==v) patch.corr={[a.id]:{owner:v}};
+      if(c?.round && c.status!=="revisado" && c.owner!==v && !(isFach(a)&&c.kind!=="distribucion")) patch.corr={[a.id]:{owner:v}};
+      if(Object.keys(patch).length) await S.db.doc("projects/"+pid).update(patch); }
+    for(const a of o2Ch){ const pp=S.projects.find(x=>x.id===pid); const pl=planOf(pp,a), c=corrOf(pp,a); const patch={}; const v=a.owner2||"";
+      if(pl && planStatus(pl)!=="enviado") patch.planosA={[a.id]:{owner2:v}};
+      if(c?.round && c.status!=="revisado") patch.corr={[a.id]:{owner2:v}};
       if(Object.keys(patch).length) await S.db.doc("projects/"+pid).update(patch); }
     for(const a of added) rememberArea(a.name);
     const fa=added.filter(a=>isFach(a)); if(fa.length) await fachToRenders(pid, fa);
@@ -2191,7 +2196,12 @@ document.addEventListener("change",async e=>{
   if(e.target.classList?.contains("area-owner2")){
     const pid=e.target.dataset.pid, aid=e.target.dataset.aid, v=e.target.value.replace(/^2º: /,"");
     const cur=(S.projects.find(x=>x.id===pid)?.areas)||[]; const ar=cur.find(x=>x.id===aid); if(!ar) return;
-    try{ await saveAreas(pid,cur.map(x=>x.id===aid?{...x,owner2:v}:x), v?`puso a ${v} como 2º responsable del área “${ar.name}”`:`quitó el 2º responsable del área “${ar.name}”`); }catch(err){ writeErr(err); }
+    try{ await saveAreas(pid,cur.map(x=>x.id===aid?{...x,owner2:v}:x), v?`puso a ${v} como 2º responsable del área “${ar.name}”`:`quitó el 2º responsable del área “${ar.name}”`);
+      const p=S.projects.find(x=>x.id===pid); if(p){ const pl=planOf(p,ar), c=corrOf(p,ar); const patch={};
+        if(pl && planStatus(pl)!=="enviado") patch.planosA={[aid]:{owner2:v}};
+        if(c?.round && c.status!=="revisado") patch.corr={[aid]:{owner2:v}};
+        if(Object.keys(patch).length) await S.db.doc("projects/"+pid).update(patch); }
+    }catch(err){ writeErr(err); }
     return;
   }
   if(e.target.classList?.contains("area-owner")){
@@ -2200,7 +2210,7 @@ document.addEventListener("change",async e=>{
     try{ await saveAreas(pid,cur.map(x=>x.id===aid?{...x,owner:v,...(x.owner2===v?{owner2:""}:{})}:x), ar?(v?`asignó el área “${ar.name}” a ${v}`:`quitó el responsable del área “${ar.name}”`):"");
       const p=S.projects.find(x=>x.id===pid); if(p&&ar){ const pl=planOf(p,ar), c=corrOf(p,ar); const patch={};
         if(pl && planStatus(pl)!=="enviado" && pl.owner!==v) patch.planosA={[aid]:{owner:v}};
-        else if(!pl && c?.round && c.status!=="revisado" && c.owner!==v) patch.corr={[aid]:{owner:v}};
+        if(c?.round && c.status!=="revisado" && c.owner!==v && !(isFach(ar)&&c.kind!=="distribucion")) patch.corr={[aid]:{owner:v}};
         if(Object.keys(patch).length) await S.db.doc("projects/"+pid).update(patch); }
     }catch(err){ writeErr(err); }
     return;
