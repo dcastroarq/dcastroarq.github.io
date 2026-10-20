@@ -6,7 +6,7 @@ La versión anterior en Claude (https://claude.ai/artifact/SPjYnFrBsaWNuB563RBap
 
 Archivo fuente: `tablero-estudio.html` (una sola página HTML) + un puente a Firebase (`fb/shim.html`, `fb/build.py`) que genera `index.html`. Datos en Firebase (proyecto `dca-proyectos`, Firestore): `projects`, `assignments`, `activity`, `people`, `presence`, `config/settings`, `config/access` y `private` (presupuestos). Las reglas de Firestore protegen los mismos permisos que la app.
 
-**Ingreso:** botón "Acceder con Google" o correo y clave (con "¿Olvidaste tu clave?"). Solo entran los correos autorizados en el panel **Accesos** (solo administración). Mientras se comprueba la sesión y mientras cargan los proyectos se ve una ruedita girando. Se puede agregar al inicio del celular (ícono con el logo, nombre "DCA Proyectos").
+**Ingreso:** botón "Acceder con Google" o correo y clave (con "¿Olvidaste tu clave?"). Solo entran los correos autorizados en el panel **Accesos** (solo administración). El panel muestra la lista del equipo y la de administradores, cada correo con una × para quitarlo, y una casilla para agregar correos; los administradores fijos aparecen sin ×. Los cambios se aplican al tocar Guardar. Mientras se comprueba la sesión y mientras cargan los proyectos se ve una ruedita girando. Se puede agregar al inicio del celular (ícono con el logo, nombre "DCA Proyectos").
 
 ---
 

@@ -476,7 +476,18 @@ body{padding-top:env(safe-area-inset-top,0px)}
 #fbAcc{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px}
 #fbAcc[hidden]{display:none}
 #fbAcc .fb-card{width:min(520px,100%);max-height:90vh;overflow:auto}
-#fbAcc textarea{width:100%;min-height:160px;padding:10px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg);color:var(--ink);font:13px var(--f-mono)}
+#fbAcc .acc-h{font-size:12px;color:var(--muted);font-weight:600;margin-top:4px}
+#fbAcc .acc-list{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:var(--r);background:var(--bg)}
+#fbAcc .acc-list li{display:flex;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid var(--line-soft);font:13.5px var(--f-mono);color:var(--ink);overflow-wrap:anywhere}
+#fbAcc .acc-list li:first-child{border-top:0}
+#fbAcc .acc-list li span{flex:1;min-width:0}
+#fbAcc .acc-list li.empty{color:var(--muted);font-family:inherit;font-size:13px}
+#fbAcc .acc-list li.fixed{color:var(--muted)}
+#fbAcc .acc-x{flex:none;width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:16px;line-height:1;cursor:pointer}
+#fbAcc .acc-x:hover{color:var(--bad);border-color:var(--bad)}
+#fbAcc .acc-add{display:flex;gap:8px}
+#fbAcc .acc-add input{flex:1;min-width:0}
+#fbAcc .acc-add button{flex:none;padding:8px 14px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:600;cursor:pointer}
 #fbAcc .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 #fbAcc .hint{font-size:12px;color:var(--muted);margin:0}
 </style>
@@ -497,10 +508,13 @@ body{padding-top:env(safe-area-inset-top,0px)}
 </div>
 <div id="fbAcc" hidden><div class="fb-card" role="dialog" aria-modal="true" aria-labelledby="fbAccT">
   <h2 id="fbAccT" style="font-size:20px">Equipo y accesos</h2>
-  <p class="hint">Solo estos correos pueden entrar a la app. Escribe uno por línea. Cada persona entra con Google (si su correo es de Google) o con la clave que le crees en Firebase.</p>
-  <label>Equipo (pueden usar la app)<textarea id="fbMembers" spellcheck="false"></textarea></label>
-  <label>Administradores adicionales<textarea id="fbAdmins" spellcheck="false" style="min-height:70px"></textarea></label>
-  <p class="hint" id="fbFixed"></p>
+  <p class="hint">Solo estos correos pueden entrar a la app. Cada persona entra con Google (si su correo es de Google) o con la clave que le crees en Firebase. Los cambios se aplican al tocar Guardar.</p>
+  <div class="acc-h">Equipo (pueden usar la app)</div>
+  <ul class="acc-list" id="fbMembersL"></ul>
+  <div class="acc-add"><input id="fbMembersIn" type="email" placeholder="correo@ejemplo.com" autocomplete="off" spellcheck="false" aria-label="Agregar correo al equipo"><button type="button" data-accadd="members">Agregar</button></div>
+  <div class="acc-h">Administradores</div>
+  <ul class="acc-list" id="fbAdminsL"></ul>
+  <div class="acc-add"><input id="fbAdminsIn" type="email" placeholder="correo@ejemplo.com" autocomplete="off" spellcheck="false" aria-label="Agregar administrador"><button type="button" data-accadd="admins">Agregar</button></div>
   <div class="row"><span class="fb-msg" id="fbAccMsg" style="margin-right:auto"></span><button class="fb-out" id="fbAccClose" type="button">Cerrar</button><button class="fb-go" id="fbAccSave" type="button" style="padding:8px 14px">Guardar</button></div>
 </div></div>
 <script>
@@ -514,7 +528,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261019162444";
+  const BUILD="20261020120012";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -741,14 +755,28 @@ onAuthStateChanged(auth, async u => {
   if(isAdmin && acts && !document.getElementById("fbAccBtn")){
     const b=document.createElement("button"); b.id="fbAccBtn"; b.type="button"; b.className="btn"; b.textContent="Accesos"; acts.insertBefore(b, document.getElementById("btnNew"));
     const lines = t => [...new Set(t.split(/[\s,;]+/).map(x=>x.trim().toLowerCase()).filter(x=>/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x)))];
+    const A={members:[],admins:[]};
+    const escH=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+    const drawAcc=()=>{
+      $g("fbMembersL").innerHTML = A.members.length ? A.members.map(x=>`<li><span>${escH(x)}</span><button type="button" class="acc-x" data-accrm="members" data-em="${escH(x)}" aria-label="Quitar ${escH(x)}" title="Quitar">×</button></li>`).join("") : `<li class="empty">Nadie todavía. Agrega los correos del equipo abajo.</li>`;
+      $g("fbAdminsL").innerHTML = ADMINS.map(x=>`<li class="fixed"><span>${escH(x)}</span><small>fijo</small></li>`).join("") + A.admins.filter(x=>!ADMINS.includes(x)).map(x=>`<li><span>${escH(x)}</span><button type="button" class="acc-x" data-accrm="admins" data-em="${escH(x)}" aria-label="Quitar ${escH(x)}" title="Quitar">×</button></li>`).join("");
+    };
+    const addFrom=k=>{ const inp=$g(k==="members"?"fbMembersIn":"fbAdminsIn"); const raw=inp.value; const ems=lines(raw);
+      if(raw.trim() && !ems.length){ $g("fbAccMsg").className="fb-msg"; $g("fbAccMsg").textContent="Revisa el correo."; return false; }
+      for(const x of ems) if(!A[k].includes(x)) A[k].push(x); inp.value=""; $g("fbAccMsg").textContent=""; drawAcc(); return true; };
+    $g("fbAcc").addEventListener("click",e=>{ const t=e.target;
+      if(t.dataset.accadd){ addFrom(t.dataset.accadd); $g(t.dataset.accadd==="members"?"fbMembersIn":"fbAdminsIn").focus(); }
+      if(t.dataset.accrm){ A[t.dataset.accrm]=A[t.dataset.accrm].filter(x=>x!==t.dataset.em); drawAcc(); } });
+    for(const [id,k] of [["fbMembersIn","members"],["fbAdminsIn","admins"]]) $g(id).addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addFrom(k); } });
     b.onclick = async () => {
       let a={admins:[],members:[]}; try{ const s=await getDoc(doc(fs,"config/access")); if(s.exists()) a={admins:[],members:[],...s.data()}; }catch(e){}
-      $g("fbMembers").value=(a.members||[]).join("\n"); $g("fbAdmins").value=(a.admins||[]).join("\n");
-      $g("fbFixed").textContent="Administradores fijos: "+ADMINS.join(", "); $g("fbAccMsg").textContent=""; $g("fbAcc").hidden=false; $g("fbMembers").focus();
+      A.members=[...(a.members||[])]; A.admins=[...(a.admins||[])]; $g("fbMembersIn").value=""; $g("fbAdminsIn").value="";
+      drawAcc(); $g("fbAccMsg").textContent=""; $g("fbAcc").hidden=false; $g("fbMembersIn").focus();
     };
     $g("fbAccClose").onclick=()=>{ $g("fbAcc").hidden=true; };
     $g("fbAccSave").onclick=async()=>{ const m=$g("fbAccMsg");
-      try{ await setDoc(doc(fs,"config/access"), {members:lines($g("fbMembers").value), admins:lines($g("fbAdmins").value), updatedAt:new Date().toISOString(), by:email}); m.className="fb-msg ok"; m.textContent="Guardado"; setTimeout(()=>{ $g("fbAcc").hidden=true; },700); }
+      if(!addFrom("members")||!addFrom("admins")) return;
+      try{ await setDoc(doc(fs,"config/access"), {members:A.members, admins:A.admins.filter(x=>!ADMINS.includes(x)), updatedAt:new Date().toISOString(), by:email}); m.className="fb-msg ok"; m.textContent="Guardado"; setTimeout(()=>{ $g("fbAcc").hidden=true; },700); }
       catch(e){ m.className="fb-msg"; m.textContent="No se pudo guardar."; } };
   }
   window.__fbResolve({ db, user, room: makeRoom(u.uid), downloads, sample: aiSample });
