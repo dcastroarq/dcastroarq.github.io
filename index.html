@@ -528,7 +528,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261020134942";
+  const BUILD="20261020135208";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -1322,6 +1322,7 @@ function areaRow(p,a,adminCtl,chip){
     ? `<span class="area-n rn-edit"><input id="rn-${esc(a.id)}" class="rn-in" value="${esc(a.name)}" aria-label="Nuevo nombre de ${esc(a.name)}"><button type="button" class="btn sm primary" data-rnsave="${esc(a.id)}">Guardar</button><button type="button" class="btn sm" data-rncancel="1">Cancelar</button></span>`
     : `<span class="area-n">${S.view==="mine"?"Diseño · ":""}${esc(a.name)}${ren?` <button type="button" class="rn-btn" data-rename="${esc(a.id)}" title="Cambiar nombre" aria-label="Cambiar nombre de ${esc(a.name)}">✎</button>`:""}</span>`;
   const drOn=adminCtl&&!S.focusArea&&adraftOn(p.id);
+  if(S.focusArea && S.openFrom==="planos" && planOf(p,a)){ const box=`${S.openFrom==="planos"&&adminCtl&&!S.local&&distCanChange(p,a)?`<div class="corrbox"><div class="corrbox-h"><span>Cambios del cliente</span><span class="hint">${corrOf(p,a)?.round||0} de ${maxCorr()} incluidos</span></div><div class="corrbox-b"><button type="button" class="btn sm" data-corrform="${esc(a.id)}" data-kind="distribucion">Registrar cambio</button></div></div>`:""}${adminCtl&&S.corrForm===a.id&&((S.openFrom==="renders"&&(p.renders||{})[a.id]?.status==="aprobado"&&!planOf(p,a))||(S.openFrom==="planos"&&distCanChange(p,a)))?corrFormHTML(p,a):""}`; return box.trim()?`<li class="area" data-aid="${esc(a.id)}">${box}</li>`:""; }
   return `<li class="area ${stageClass(s)}" data-aid="${esc(a.id)}">${drOn?`<span class="drag-h" data-dragarea="${esc(a.id)}" title="Arrastra para ordenar" aria-hidden="true">⠿</span>`:""}${nameHTML}${chip?`<span class="due-r">${chip}</span>`:""}
     ${adminCtl?`<select class="area-owner" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Responsable de ${esc(a.name)}"><option value="">Sin responsable</option>${S.cfg.team.map(n=>`<option ${n===a.owner?"selected":""}>${esc(n)}</option>`).join("")}</select>`:""}
     ${adminCtl?`<select class="area-owner2" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Segundo responsable de ${esc(a.name)}" title="Responsable 2 (opcional): ve la tarjeta, pero solo el responsable 1 la mueve"><option value="">Sin 2º responsable</option>${S.cfg.team.filter(n=>n!==a.owner).map(n=>`<option value="${esc(n)}" ${n===a.owner2?"selected":""}>2º: ${esc(n)}</option>`).join("")}</select>`:""}
@@ -1858,7 +1859,8 @@ function renderAreasBox(){
   const admin=S.isAdmin&&!S.local;
   const dr = admin&&!S.focusArea ? draftFor(p) : null;
   const ar=(dr?dr.areas:(p.areas||[])).filter(a=>!S.focusArea||a.id===S.focusArea);
-  setHTML(box, (dr&&dr.dirty?`<p class="draft-note">Cambios sin guardar. Toca <b>Guardar</b> para aplicarlos o <b>Cancelar</b> para descartarlos.</p>`:"") + (ar.length?`<ul class="area-list">${ar.map(a=>areaRow(p,a,admin)).join("")}</ul>`:`<p class="hint">${admin?"Sube el presupuesto aprobado para que Claude identifique las áreas, o agrégalas a mano. Cada área aparece como su propia tarjeta en el tablero.":"La administradora todavía no ha definido las áreas de diseño."}</p>`)
+  const rowsH=ar.map(a=>areaRow(p,a,admin)).join("");
+  setHTML(box, (dr&&dr.dirty?`<p class="draft-note">Cambios sin guardar. Toca <b>Guardar</b> para aplicarlos o <b>Cancelar</b> para descartarlos.</p>`:"") + (ar.length?(rowsH?`<ul class="area-list">${rowsH}</ul>`:""):`<p class="hint">${admin?"Sube el presupuesto aprobado para que Claude identifique las áreas, o agrégalas a mano. Cada área aparece como su propia tarjeta en el tablero.":"La administradora todavía no ha definido las áreas de diseño."}</p>`)
     + (admin&&!S.focusArea?addAreasHTML(p):""));
   if(keep!=null){ const t=document.getElementById("cf-notes"); if(t) t.value=keep; }
 }
