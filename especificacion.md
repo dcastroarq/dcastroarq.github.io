@@ -31,7 +31,7 @@ Archivo fuente: `tablero-estudio.html` (una sola página HTML) + un puente a Fir
 - **Campos:**
   - Proyecto: el nombre del cliente y el del proyecto son un mismo campo.
   - Fecha de inicio: hoy por defecto.
-  - Revisión máxima: inicio + 4 semanas.
+  - Primera revisión (así se llama en el proyecto completo): inicio + 4 semanas. Es la revisión máxima inicial de todas las áreas.
   - Prioridad: Alta, Media o Baja; se aplica a todas las áreas.
 - La fase siempre arranca en Inicio. No hay notas generales.
 - **Áreas:** se eligen con chips o se escriben a mano. Las áreas nuevas se recuerdan para la próxima vez.

@@ -528,7 +528,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261020135208";
+  const BUILD="20261020140918";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -2467,12 +2467,12 @@ function openProject(p){
       <input type="hidden" id="p-owner" value="${esc(d.owner||"")}">
       <label class="f"><span>Proyecto</span><input id="p-client" required value="${esc(d.client||d.name||"")}" placeholder="Ej. Viviana Villacres" ${ro}></label>
       <div class="locked">
-        <div class="lh">Fechas <small>${S.isAdmin?"La revisión máxima se calcula sola: 4 semanas desde el inicio":"Solo la administradora puede cambiarlas"}</small></div>
+        <div class="lh">Fechas <small>${S.isAdmin?"La primera revisión se calcula sola: 4 semanas desde el inicio":"Solo la administradora puede cambiarlas"}</small></div>
         <div class="grid2">
           <label class="f"><span>Fecha de inicio</span><input type="date" id="p-start" value="${esc(d.start)}" ${aro}></label>
-          <label class="f"><span>Revisión máxima</span><input type="date" id="p-due" value="${esc(d.due)}" ${aro}></label>
+          <label class="f"><span>Primera revisión</span><input type="date" id="p-due" value="${esc(d.due)}" ${aro}></label>
         </div>
-        <p class="hint" style="margin:0">Inicio: cuando el cliente paga y se confirma el proyecto. La revisión máxima y la prioridad se aplican a todas las áreas; para cambiarlas en una sola área, ábrela desde su tarjeta.</p>
+        <p class="hint" style="margin:0">Inicio: cuando el cliente paga y se confirma el proyecto. La primera revisión y la prioridad se aplican a todas las áreas; para cambiarlas en una sola área, ábrela desde su tarjeta.</p>
       </div>
       <div class="grid2">
         <label class="f"><span>Prioridad</span><select id="p-priority" ${aro}>${opt(PRIOS,d.priority)}</select></label>
