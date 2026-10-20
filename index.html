@@ -528,7 +528,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261020130532";
+  const BUILD="20261020131105";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -660,7 +660,7 @@ function flatten(obj, pre=[], out=[]){
 const mapErr = e => { const m={"permission-denied":"invalid_argument","not-found":"invalid_argument","resource-exhausted":"quota_exceeded","invalid-argument":"bad_request"}; const er=new Error(e?.message||"error"); er.code=m[e?.code]||e?.code||"unavailable"; return er; };
 const wrapDoc = s => ({ id:s.id, exists:s.exists(), data:()=>s.data(), metadata:{} });
 const wrapQ = q => ({ docs:q.docs.map(wrapDoc), size:q.size, empty:q.empty, docChanges:()=>[], metadata:{} });
-const guard = async f => { try{ return await f(); }catch(e){ throw mapErr(e); } };
+const guard = async f => { window.__dbInflight=(window.__dbInflight||0)+1; try{ return await f(); }catch(e){ throw mapErr(e); } finally{ window.__dbInflight--; } };
 function docApi(path){
   const ref=doc(fs, path);
   return {
@@ -1497,7 +1497,7 @@ async function savePlanDates(pid, aid, patch){
 }
 const usePlanDates=(p,a)=>!!(a&&S.openFrom==="planos"&&planOf(p,a));
 function planDatesBlock(d,fa,aro){ const cd=planDatesOf(d,fa)||{};
-  return `<div class="lh">Fechas de planos <small>${S.isAdmin?"Se guardan al cambiarlas":"Solo la administradora puede cambiarlas"}</small></div>
+  return `<div class="lh">Fechas de planos <small>${S.isAdmin?"Se guardan al tocar Guardar":"Solo la administradora puede cambiarlas"}</small></div>
         <div class="grid2">
           <label class="f"><span>Inicio planos</span><input type="date" class="plan-date" id="pd-start" data-field="start" data-pid="${esc(d.id)}" data-aid="${esc(fa.id)}" value="${esc(cd.start||"")}" ${aro}></label>
           <label class="f"><span>Envío máximo</span><input type="date" class="plan-date" id="pd-due" data-field="due" data-pid="${esc(d.id)}" data-aid="${esc(fa.id)}" value="${esc(cd.due||"")}" ${aro}></label>
@@ -1607,6 +1607,7 @@ async function setPlanOwner(pid, aid, owner){
 }
 function setHTML(el, html){ if(el._html===html) return false; el._html=html; el.innerHTML=html; return true; }
 function renderPlanBox(){
+  if(S.focusArea && S.fdraft?.dirty) return;
   const box=document.getElementById("planBox"); if(!box||!S.openId) return;
   const p=S.projects.find(x=>x.id===S.openId); if(!p) return;
   const ar=(p.areas||[]).filter(a=>!S.focusArea||a.id===S.focusArea);
@@ -1820,12 +1821,32 @@ async function applyAreaDraft(){
   for(const aid of dr.gonow) if(alive(aid)) await startWithoutWaiting(pid, aid);
   S.adraft=null;
 }
+/* ---------- borrador de la tarjeta de un área (todas las categorías): nada se graba hasta Guardar ---------- */
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function settle(){ await sleep(80); let n=0; while((window.__dbInflight||0)>0 && n++<200) await sleep(50); await sleep(80); }
+function fdMark(){ S.fdraft=S.fdraft||{els:[],clicks:[],notes:false,dirty:false}; S.fdraft.dirty=true; const n=document.getElementById("fdNote"); if(n) n.hidden=false; return S.fdraft; }
+const inFocusForm = el => S.focusArea && !window.__fdApply && el && document.getElementById("pf")?.contains(el) && !/^cf-/.test(el.id||"");
+document.addEventListener("change",e=>{ const el=e.target; if(!inFocusForm(el)) return; e.stopImmediatePropagation(); const dr=fdMark(); if(!dr.els.includes(el)) dr.els.push(el); },true);
+document.addEventListener("input",e=>{ if(e.target?.id==="fa-anotes" && inFocusForm(e.target)) fdMark().notes=true; },true);
+document.addEventListener("click",async e=>{
+  const g=e.target.closest?.("[data-gonow]"); if(g && inFocusForm(g)){ e.preventDefault(); e.stopImmediatePropagation(); const dr=fdMark(); if(!dr.clicks.includes(g)) dr.clicks.push(g); g.hidden=true; g.insertAdjacentHTML("afterend",`<span class="hint">Empezará sin esperar al guardar</span>`); return; }
+  const s=e.target.closest?.('[data-act="fdsave"]'); if(!s) return; e.preventDefault(); e.stopImmediatePropagation();
+  const dr=S.fdraft; if(!dr||!dr.dirty){ closeDrawer(); return; }
+  s.disabled=true; window.__fdApply=true;
+  try{
+    for(const el of dr.els){ if(!document.contains(el)) continue; el.dispatchEvent(new Event("change",{bubbles:true})); await settle(); }
+    if(dr.notes){ const b=document.querySelector('[data-act="saveANotes"]'); if(b){ b.click(); await settle(); } }
+    for(const b of dr.clicks){ if(document.contains(b)){ b.click(); await settle(); } }
+  }finally{ window.__fdApply=false; }
+  S.fdraft=null; closeDrawer(); render(); toast("Cambios guardados");
+},true);
 let areaDrag=null;
 document.addEventListener("pointerdown",e=>{ const h=e.target.closest?.("[data-dragarea]"); if(!h||!S.adraft) return; e.preventDefault(); const li=h.closest("li"); if(!li) return; areaDrag={li, ul:li.parentElement}; li.classList.add("dragging"); try{ h.setPointerCapture(e.pointerId); }catch(_){} });
 document.addEventListener("pointermove",e=>{ if(!areaDrag) return; e.preventDefault(); const {li,ul}=areaDrag; const sibs=[...ul.children].filter(x=>x!==li&&x.dataset.aid); let ref=null; for(const s of sibs){ const r=s.getBoundingClientRect(); if(e.clientY<r.top+r.height/2){ ref=s; break; } } if(ref!==li.nextElementSibling) ul.insertBefore(li, ref); });
 const endDrag=()=>{ if(!areaDrag) return; const {li,ul}=areaDrag; areaDrag=null; li.classList.remove("dragging"); const dr=S.adraft; if(!dr) return; const ids=[...ul.children].map(x=>x.dataset.aid).filter(Boolean); const next=ids.map(id=>dr.areas.find(a=>a.id===id)).filter(Boolean); if(next.length===dr.areas.length && next.some((a,i)=>a.id!==dr.areas[i].id)){ dr.areas=next; draftTouch(); } };
 document.addEventListener("pointerup",endDrag); document.addEventListener("pointercancel",endDrag);
 function renderAreasBox(){
+  if(S.focusArea && S.fdraft?.dirty) return;
   const box=document.getElementById("areasBox"); if(!box||!S.openId) return;
   const keep=document.getElementById("cf-notes")?.value;
   const p=S.projects.find(x=>x.id===S.openId); if(!p) return;
@@ -2361,7 +2382,7 @@ ${JSON.stringify(boardSnapshot())}`;
 }
 
 /* ---------- drawers ---------- */
-function closeDrawer(){ S.adraft=null; S.focusArea=null; S.corrForm=null; S.renaming=null; $("#overlay").innerHTML=""; setEditing(null); B.ctl?.abort(); B.pid=null; B.review=null; B.bytes=null; }
+function closeDrawer(){ S.adraft=null; S.fdraft=null; S.focusArea=null; S.corrForm=null; S.renaming=null; $("#overlay").innerHTML=""; setEditing(null); B.ctl?.abort(); B.pid=null; B.review=null; B.bytes=null; }
 function renderActivity(){
   const box=document.getElementById("actList"); if(!box||!S.openId) return;
   const fp=S.focusArea?S.projects.find(x=>x.id===S.openId):null; const far=fp?(fp.areas||[]).find(x=>x.id===S.focusArea):null; const fnames=far?[far.name,...(far.aliases||[])].filter(Boolean):[];
@@ -2388,15 +2409,16 @@ function openProject(p){
   <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dt">
     <div class="d-h"><div><div class="eyebrow">${esc(d.code)} · ${esc(d.name)}</div><h2 id="dt">${esc(fa.name)}</h2></div><button class="btn ghost" type="button" data-act="close" aria-label="Cerrar">✕</button></div>
     <form class="d-b" id="pf">
+      <p class="draft-note" id="fdNote" hidden>Cambios sin guardar. Toca <b>Guardar</b> para aplicarlos o <b>Cancelar</b> para descartarlos.</p>
       <div class="others" id="othersBox" hidden></div>
       <div class="locked">
-        ${usePlanDates(d,fa)?planDatesBlock(d,fa,aro):useCorrDates(d,fa)?(()=>{ const cd=corrDatesOf(d,fa)||{}; const c=corrOf(d,fa); return `<div class="lh">Fechas de la corrección ${c.round} <small>${S.isAdmin?"Se guardan al cambiarlas":"Solo la administradora puede cambiarlas"}</small></div>
+        ${usePlanDates(d,fa)?planDatesBlock(d,fa,aro):useCorrDates(d,fa)?(()=>{ const cd=corrDatesOf(d,fa)||{}; const c=corrOf(d,fa); return `<div class="lh">Fechas de la corrección ${c.round} <small>${S.isAdmin?"Se guardan al tocar Guardar":"Solo la administradora puede cambiarlas"}</small></div>
         <div class="grid2">
           <label class="f"><span>Inicio corrección</span><input type="date" class="corr-date" data-field="start" data-pid="${esc(d.id)}" data-aid="${esc(fa.id)}" value="${esc(cd.start||"")}" ${aro}></label>
           <label class="f"><span>Revisión máxima</span><input type="date" class="corr-date" data-field="due" data-pid="${esc(d.id)}" data-aid="${esc(fa.id)}" value="${esc(cd.due||"")}" ${aro}></label>
         </div>
         ${(()=>{ const sent=sentToClientBefore(d,fa,c.at); return sent?`<p class="hint" style="margin:0">Enviados al cliente: <b>${fmtDate(isoDay(sent))}</b></p>`:""; })()}`; })()
-        :`<div class="lh">Fechas del proyecto <small>${S.isAdmin?"Se guardan al cambiarlas":"Solo la administradora puede cambiarlas"}</small></div>
+        :`<div class="lh">Fechas del proyecto <small>${S.isAdmin?"Se guardan al tocar Guardar":"Solo la administradora puede cambiarlas"}</small></div>
         <div class="grid2">
           <label class="f"><span>Fecha de inicio</span><input type="date" id="fa-start" data-pid="${esc(d.id)}" data-aid="${esc(fa.id)}" value="${esc(d.start||"")}" ${aro}></label>
           <label class="f"><span>Revisión máxima</span><input type="date" id="fa-due" data-pid="${esc(d.id)}" data-aid="${esc(fa.id)}" value="${esc(aDue(d,fa))}" ${aro}></label>
@@ -2412,13 +2434,13 @@ function openProject(p){
 
       <div id="areasBox"></div>
       <div id="planSec" hidden><div class="section-t">Planos y detalles</div><div id="planBox"></div></div>
-      ${canEditArea(d,fa)?`<label class="f"><span>Notas de ${esc(fa.name)}</span><textarea id="fa-anotes" rows="4" placeholder="Acuerdos, medidas, materiales o pendientes de esta área…">${esc((d.areaNotes||{})[fa.id]||"")}</textarea></label><div><button class="btn sm" type="button" data-act="saveANotes">Guardar notas del área</button></div>`
+      ${canEditArea(d,fa)?`<label class="f"><span>Notas de ${esc(fa.name)}</span><textarea id="fa-anotes" rows="4" placeholder="Acuerdos, medidas, materiales o pendientes de esta área…">${esc((d.areaNotes||{})[fa.id]||"")}</textarea></label><div><button class="btn sm" type="button" data-act="saveANotes" hidden>Guardar notas del área</button></div>`
         :`<div class="f"><span class="notes-l">Notas de ${esc(fa.name)}</span><div class="notes-ro">${(d.areaNotes||{})[fa.id]?esc((d.areaNotes||{})[fa.id]):`<span class="hint">Sin notas de esta área.</span>`}</div></div>`}
       <div class="section-t">Actividad de esta área</div><div id="actList"></div>
     </form>
     <div class="d-f">
       <div>${S.isAdmin?`<button class="btn" type="button" data-act="full">Ver proyecto completo</button>`:""}</div>
-      <div><button class="btn" type="button" data-act="close">Cerrar</button></div>
+      <div style="display:flex;gap:8px"><button class="btn" type="button" data-act="close">Cancelar</button><button class="btn primary" type="button" data-act="fdsave">Guardar</button></div>
     </div>
   </aside>`;
   } else

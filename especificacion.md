@@ -131,6 +131,7 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
   - Etiquetas: "Prioridad alta" en ámbar y "Prioridad baja" en gris.
 
 ## 5. Detalle de un área (al tocar una tarjeta)
+- **Guardar / Cancelar:** en la tarjeta de un área (en cualquier categoría) nada se graba al cambiarlo: fase, fechas, prioridad, responsables, notas y "Empezar sin esperar" quedan pendientes, con el aviso "Cambios sin guardar", hasta tocar **Guardar**. **Cancelar** o cerrar descarta todo. Registrar una corrección o un cambio de distribución sigue siendo inmediato (tiene su propio botón de confirmar).
 - **Contenido:**
   - solo esa área;
   - fechas de su categoría: proyecto, corrección o planos;
