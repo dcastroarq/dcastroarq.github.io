@@ -528,7 +528,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261020134428";
+  const BUILD="20261020134942";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -1601,7 +1601,9 @@ async function setPlanStatus(pid, aid, status){
 }
 async function setPlanOwner(pid, aid, owner){
   const p=S.projects.find(x=>x.id===pid); const a=(p?.areas||[]).find(x=>x.id===aid); if(!a||!planOf(p,a)) return;
-  try{ await S.db.doc("projects/"+pid).update({planosA:{[aid]:{owner}}}); await logAct(pid,"assign",owner?`asignó los planos de “${a.name}” a ${owner}`:`quitó el responsable de los planos de “${a.name}”`); }catch(e){ writeErr(e); }
+  try{ await S.db.doc("projects/"+pid).update({planosA:{[aid]:{owner}}}); await logAct(pid,"assign",owner?`asignó los planos de “${a.name}” a ${owner}`:`quitó el responsable de los planos de “${a.name}”`);
+    const cur=p.areas||[]; if((a.owner||"")!==(owner||"")) await saveAreas(pid, cur.map(x=>x.id===aid?{...x,owner,...(x.owner2===owner?{owner2:""}:{})}:x), "");
+  }catch(e){ writeErr(e); }
 }
 function setHTML(el, html){ if(el._html===html) return false; el._html=html; el.innerHTML=html; return true; }
 function renderPlanBox(){
@@ -1613,7 +1615,7 @@ function renderPlanBox(){
   const rows=ar.map(a=>{ const pl=planOf(p,a);
     if(!pl) return S.focusArea?"":`<li class="area s-pendiente"><span class="area-n">${esc(a.name)}</span><span class="hint">Aún no</span>${adm?`<button type="button" class="btn sm" data-planmanual="${esc(a.id)}">Pasar a planos</button>`:""}</li>`;
     return `<li class="area ${PLAN_ADMIN_ST.includes(planStatus(pl))?"s-terminada":planStatus(pl)==="pendiente"?"s-pendiente":"s-proceso"}"><span class="area-n">${esc(a.name)}</span>
-      ${adm&&!S.focusArea?`<select class="plan-owner" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Responsable de planos de ${esc(a.name)}"><option value="">Sin responsable</option>${S.cfg.team.map(n=>`<option ${n===pl.owner?"selected":""}>${esc(n)}</option>`).join("")}</select><select class="plan-owner2" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Segundo responsable de planos de ${esc(a.name)}"><option value="">Sin 2º responsable</option>${S.cfg.team.filter(n=>n!==pl.owner).map(n=>`<option value="${esc(n)}" ${n===own2(pl,a)?"selected":""}>2º: ${esc(n)}</option>`).join("")}</select>`:(pl.owner?`<span class="owner-n">${esc(bothNames(pl.owner,own2(pl,a)))}</span>`:`<span class="chip todo">Sin responsable</span>`)}
+      ${adm?`<select class="plan-owner" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Responsable de planos de ${esc(a.name)}"><option value="">Sin responsable</option>${S.cfg.team.map(n=>`<option ${n===pl.owner?"selected":""}>${esc(n)}</option>`).join("")}</select><select class="plan-owner2" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" aria-label="Segundo responsable de planos de ${esc(a.name)}"><option value="">Sin 2º responsable</option>${S.cfg.team.filter(n=>n!==pl.owner).map(n=>`<option value="${esc(n)}" ${n===own2(pl,a)?"selected":""}>2º: ${esc(n)}</option>`).join("")}</select>`:(pl.owner?`<span class="owner-n">${esc(bothNames(pl.owner,own2(pl,a)))}</span>`:`<span class="chip todo">Sin responsable</span>`)}
       <select class="plan-st" data-pid="${esc(p.id)}" data-aid="${esc(a.id)}" ${planSelectable(p,a,planStatus(pl))?"":"disabled"} aria-label="Estado de planos de ${esc(a.name)}">${PSTAGES.map(([v,l])=>{ const no=v!==planStatus(pl)&&(v==="enviado"||!canMovePlan(p,a,planStatus(pl),v)); return `<option value="${v}" ${v===planStatus(pl)?"selected":""} ${no?"disabled":""}>${l}${no?" (no disponible)":""}</option>`; }).join("")}</select></li>`; }).join("");
   const sec=document.getElementById("planSec"); if(sec) sec.hidden=!rows;
   setHTML(box, rows?`<ul class="area-list">${rows}</ul>`:"");
@@ -2190,7 +2192,9 @@ document.addEventListener("change",async e=>{
   if(e.target.classList?.contains("place-st")) return placeArea(e.target.dataset.pid,e.target.dataset.aid,e.target.dataset.cat,e.target.value);
   if(e.target.classList?.contains("plan-owner2")){
     const pid=e.target.dataset.pid, aid=e.target.dataset.aid, v=e.target.value; const p=S.projects.find(x=>x.id===pid); const a=(p?.areas||[]).find(x=>x.id===aid); if(!a) return;
-    try{ await S.db.doc("projects/"+pid).update({planosA:{[aid]:{owner2:v}}}); await logAct(pid,"assign",v?`puso a ${v} como 2º responsable de los planos de “${a.name}”`:`quitó el 2º responsable de los planos de “${a.name}”`); }catch(err){ writeErr(err); }
+    try{ await S.db.doc("projects/"+pid).update({planosA:{[aid]:{owner2:v}}}); await logAct(pid,"assign",v?`puso a ${v} como 2º responsable de los planos de “${a.name}”`:`quitó el 2º responsable de los planos de “${a.name}”`);
+      if((a.owner2||"")!==v) await saveAreas(pid, (p.areas||[]).map(x=>x.id===aid?{...x,owner2:v}:x), "");
+    }catch(err){ writeErr(err); }
     return;
   }
   if(e.target.classList?.contains("area-owner2")){
