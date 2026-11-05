@@ -536,7 +536,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261105091500";
+  const BUILD="20261105093026";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -1056,13 +1056,24 @@ function renderFilters(){
   
 }
 function renderStrip(){
-  const items=boardItems(false);
-  const late = items.filter(x=>{ if(x.kind!=="area") { const d=daysTo(x.p.due); return d!==null&&d<0&&!projectDone(x.p); } const d=daysTo(aDue(x.p,x.a)); return d!==null&&d<0&&x.stage!==lastStage(); }).length;
-  const noOwner = items.filter(x=>x.kind==="area"&&!x.a.owner).length;
-  const cells = S.cfg.stages.map(s=>`<div class="cell"><div class="k">${esc(stL(s))}</div><div class="v">${items.filter(x=>x.stage===s).length}</div></div>`);
-  cells.push(`<div class="cell ${noOwner?"warn":""}"><div class="k">Sin responsable</div><div class="v">${noOwner}</div></div>`);
-  cells.push(`<div class="cell ${late?"alert":""}"><div class="k">Atrasados</div><div class="v">${late}</div></div>`);
-  $("#strip").innerHTML = cells.join("");
+  /* Suma de todas las pestañas: cada área cuenta en la fase donde está ahora */
+  let ini=0, proc=0, rev=0, noOwner=0, late=0;
+  for(const p of S.projects){
+    const ar=p.areas||[]; if(!ar.length) continue;
+    const lateAreas=new Set(projectIssues(p).map(x=>x.area));
+    for(const a of ar){
+      const n=areaNow(p,a);
+      if(n.done) continue;
+      const fin=(n.kind==="area"&&n.status===lastStage())||(n.kind==="corr"&&n.status==="revisado")||(n.kind==="plan"&&["revisado","enviado"].includes(n.status))||(n.kind==="render"&&n.status==="cliente");
+      if(n.kind==="area"&&n.status===S.cfg.stages[0]) ini++;
+      if((n.kind==="area"&&n.status===S.cfg.stages[1])||(["corr","plan"].includes(n.kind)&&n.status==="proceso")) proc++;
+      if((n.kind==="area"&&n.status==="Por revisar")||(["corr","plan"].includes(n.kind)&&n.status==="porrevisar")) rev++;
+      if(!fin && !n.owner) noOwner++;
+      if(lateAreas.has(a.name)) late++;
+    }
+  }
+  const cell=(k,v,cls="")=>`<div class="cell ${cls}"><div class="k">${esc(k)}</div><div class="v">${v}</div></div>`;
+  $("#strip").innerHTML = cell(stL(S.cfg.stages[0]),ini) + cell("En proceso",proc) + cell("Por revisar DC",rev) + cell("Sin responsable",noOwner,noOwner?"warn":"") + cell("Atrasados",late,late?"alert":"");
 }
 function renderWho(){
   const w=$("#whoami"), pk=$("#pickMe");

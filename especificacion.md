@@ -124,6 +124,9 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
 - Fechas: si la fecha está vencida, debajo del aviso "vencida hace Nd" se muestra la fecha (Revisión máx. o Envío máx.). Si la fecha se cambió a mano, solo se muestra la nueva (no la anterior).
 - Orden: cada tarea por separado, primero por prioridad (alta, media, baja) y luego por fecha.
 
+## Contadores de arriba
+- Suman todas las pestañas, contando cada área en la fase donde está ahora: **Inicio** (solo Proyectos), **En proceso** y **Por revisar DC** (Proyectos + Correcciones + Planos), **Sin responsable** (áreas sin terminar cuya fase actual no tiene responsable) y **Atrasados** (áreas con algún motivo de atraso, como en Lista). Revisado DC no se muestra.
+
 ## 4. Orden, prioridad y fechas
 - Cada columna se ordena por la fecha de su categoría y luego por prioridad. El equipo no puede subir o bajar tarjetas dentro de una columna: solo las mueve entre columnas.
 - **Orden manual (solo administración), en Proyectos, Renders, Correcciones y Planos:** arrastrar una tarjeta hacia arriba o abajo dentro de su misma columna la deja fija en ese lugar (aunque su fecha sea más tarde) y le pone prioridad alta. Las tarjetas que quedan por encima también quedan fijas en su orden; las demás siguen ordenadas por fecha y prioridad, debajo. El orden fijo se pierde cuando la tarjeta pasa a otra columna. Se guarda en `config/order`.
