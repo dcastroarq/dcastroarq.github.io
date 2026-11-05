@@ -125,7 +125,8 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
 - Orden: cada tarea por separado, primero por prioridad (alta, media, baja) y luego por fecha.
 
 ## 4. Orden, prioridad y fechas
-- Cada columna se ordena por la fecha de su categoría y luego por prioridad. Nadie puede subir o bajar tarjetas dentro de una columna: solo se mueven entre columnas.
+- Cada columna se ordena por la fecha de su categoría y luego por prioridad. El equipo no puede subir o bajar tarjetas dentro de una columna: solo las mueve entre columnas.
+- **Orden manual (solo administración), en Proyectos, Renders, Correcciones y Planos:** arrastrar una tarjeta hacia arriba o abajo dentro de su misma columna la deja fija en ese lugar (aunque su fecha sea más tarde) y le pone prioridad alta. Las tarjetas que quedan por encima también quedan fijas en su orden; las demás siguen ordenadas por fecha y prioridad, debajo. El orden fijo se pierde cuando la tarjeta pasa a otra columna. Se guarda en `config/order`.
 - **Por área, solo la administración** puede cambiar la prioridad y la revisión máxima, abriendo la tarjeta. El cambio reordena todo automáticamente.
 - **Colores de las tarjetas:**
   - Borde rojo: la fecha está vencida (solo por fecha).

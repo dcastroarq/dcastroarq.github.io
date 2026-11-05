@@ -536,7 +536,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261105090615";
+  const BUILD="20261105091500";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -975,7 +975,18 @@ function catDue(p,a,cat){
   if(cat==="renders"){ const r=(p.renders||{})[a.id]; return (r&&r.round)?(corrDatesOf(p,a)?.due||""):aDue(p,a); }
   return aDue(p,a);
 }
-function sortKey(p,a,cat){ return `${catDue(p,a,cat)||"9999-12-31"}|${PRANK[aPrio(p,a)]??1}|${p.start||""}|${p.createdAt||""}|${p.id}|${String((p.areas||[]).findIndex(x=>x.id===a?.id)).padStart(3,"0")}`; }
+/* Orden manual (solo administración): una tarjeta soltada en un lugar de su columna queda fija ahí mientras siga en esa columna. */
+function pinSig(p,a,cat){
+  if(!a) return "";
+  if(cat==="proyectos"){ const st=stageOfArea(p,a); return `${st}|${stageDates(p,a)[st]||""}`; }
+  if(cat==="renders"){ const r=(p.renders||{})[a.id]; return r?`${r.status}|${r.round||0}|${(r.stageAt||{})[r.status]||r.at||""}`:""; }
+  if(cat==="corr"){ const c=corrOf(p,a); return c?`${c.status}|${c.round||0}|${(c.stageAt||{})[c.status]||c.at||""}`:""; }
+  if(cat==="planos"){ const pl=planOf(p,a); return pl?`${planStatus(pl)}|${(pl.stageAt||{})[planStatus(pl)]||pl.at||""}`:""; }
+  return "";
+}
+function pinOf(p,a,cat){ const m=(S.morder||{})[cat]; const e=m&&a?m[`${p.id}:${a.id}`]:null; return e && e.sig===pinSig(p,a,cat) ? e.k : null; }
+function sortKey(p,a,cat){ const pk=pinOf(p,a,cat); return pk!=null ? `0|${String(pk).padStart(6,"0")}` : "1|"+baseSortKey(p,a,cat); }
+function baseSortKey(p,a,cat){ return `${catDue(p,a,cat)||"9999-12-31"}|${PRANK[aPrio(p,a)]??1}|${p.start||""}|${p.createdAt||""}|${p.id}|${String((p.areas||[]).findIndex(x=>x.id===a?.id)).padStart(3,"0")}`; }
 const bySK = cat => (x,y) => sortKey(x.p,x.a,cat).localeCompare(sortKey(y.p,y.a,cat));
 function elSK(el){
   const k=el.dataset.area||el.dataset.render||el.dataset.corr||el.dataset.plan; const cat=S.view==="board"?"proyectos":S.view;
@@ -1909,7 +1920,12 @@ function moveGhost(){
   col.classList.add("drop"); D.col=col;
   const body=col.querySelector(".col-b");
   body.querySelector(".col-empty")?.setAttribute("hidden","");
-  if(col===D.card.closest(".col")){ col.classList.remove("drop"); if(D.card.nextSibling!==D.ph) D.card.after(D.ph); return; }
+  if(col===D.card.closest(".col")){ col.classList.remove("drop");
+    if(S.isAdmin && !S.local && ["area","render","corr","plan"].includes(D.kind)){
+      const cs=[...body.querySelectorAll(":scope > .card:not(.dragging-src)")]; const nx=cs.find(c=>{ const r=c.getBoundingClientRect(); return D.y < r.top + r.height/2; });
+      if(nx){ if(D.ph.nextSibling!==nx) body.insertBefore(D.ph,nx); } else { const last=cs.at(-1); if(last && last.nextSibling!==D.ph) last.after(D.ph); }
+      return; }
+    if(D.card.nextSibling!==D.ph) D.card.after(D.ph); return; }
   const mySK=elSK(D.card); const cards=[...body.querySelectorAll(".card:not(.dragging-src)")];
   const before=cards.find(c=>elSK(c)>mySK) || body.querySelector(".mv") || null;
   if(before){ if(D.ph.nextSibling!==before) body.insertBefore(D.ph,before); }
@@ -1932,12 +1948,34 @@ function elOrd(el){
   if(el.dataset.area){ const [pid,aid]=el.dataset.area.split(":"); const p=S.projects.find(x=>x.id===pid); const a=(p?.areas||[]).find(x=>x.id===aid); return a?areaOrd(p,a):null; }
   return null;
 }
+async function pinOrder(cat, keys){
+  const map={}; keys.forEach((k,i)=>{ const [pid,aid]=k.split(":"); const p=S.projects.find(x=>x.id===pid); const a=(p?.areas||[]).find(x=>x.id===aid); if(a) map[k]={k:i+1, sig:pinSig(p,a,cat)}; });
+  const last=keys.at(-1); const [pid,aid]=last.split(":"); const p=S.projects.find(x=>x.id===pid); const a=(p?.areas||[]).find(x=>x.id===aid);
+  S.morder={...(S.morder||{}), [cat]:{...((S.morder||{})[cat]||{}), ...map}}; S.pendingRender=false; render();
+  try{
+    await S.db.doc("config/order").set({...(S.morder||{}), updatedAt:new Date().toISOString()});
+    if(p&&a&&aPrio(p,a)!=="alta"){ const cur=S.assign[pid]||{owner:""}; await S.db.doc("assignments/"+pid).set({...cur, areaPrio:{...(cur.areaPrio||{}),[aid]:"alta"}, at:new Date().toISOString()}); }
+    if(p&&a) await logAct(pid,"edit",`puso “${a.name}” en el lugar ${keys.length} de su columna (prioridad alta)`);
+    toast(`${a?.name||"Área"}: lugar ${keys.length}, prioridad alta`);
+  }catch(err){ writeErr(err); }
+}
 async function dragEnd(cancel){
   clearTimeout(D.timer); D.timer=null;
   D.card?.classList.remove("lift");
   if(!S.dragging){ D.card=null; return; }
   cancelAnimationFrame(D.raf);
   const ghostRect=D.ghost.getBoundingClientRect();
+  if(!cancel && S.isAdmin && !S.local && ["area","render","corr","plan"].includes(D.kind) && D.ph.closest(".col")===D.card.closest(".col")){
+    const body=D.ph.parentElement; const seq=[...body.children].filter(e=>e===D.ph||(e.classList.contains("card")&&!e.classList.contains("dragging-src")));
+    const idx=seq.indexOf(D.ph); const moved=D.card.nextElementSibling!==D.ph || D.ph.previousElementSibling!==D.card;
+    const keys=seq.slice(0,idx+1).map(e=>e===D.ph?D.id:cardKey(e)).map(k=>k.replace(/^[rcp]:/,""));
+    const cat=S.view==="board"?"proyectos":S.view;
+    D.ghost.remove(); D.ph.remove(); D.card.classList.remove("dragging-src");
+    document.querySelectorAll(".col.drop").forEach(x=>x.classList.remove("drop")); document.body.classList.remove("dragging");
+    S.dragging=false; D.suppressClick=true; setTimeout(()=>D.suppressClick=false,60); D.card=null;
+    if(moved){ await pinOrder(cat, keys); } else { S.pendingRender=false; render(); }
+    return;
+  }
   if(D.kind==="pgroup"){
     const pc=cancel?null:D.ph.closest(".col[data-pstage]");
     D.ghost.remove(); D.ph.remove(); D.card.classList.remove("dragging-src");
@@ -2761,6 +2799,7 @@ function goLocal(msg){
     }
   }catch(e){}
   setRole();
+  db.doc("config/order").onSnapshot(s=>{ S.morder=s.exists?(s.data()||{}):{}; render(); }, ()=>{});
   db.doc("config/settings").onSnapshot(s=>{ if(s.exists){ const d=s.data(); S.cfg={stages:d.stages?.length?[...d.stages]:DEFAULT_CFG.stages, types:[...(d.types||[])], team:[...(d.team||[])], renderOwner:typeof d.renderOwner==="string"?d.renderOwner:"Paul Moreira", maxCorr:Number(d.maxCorr)||3, commonAreas:Array.isArray(d.commonAreas)?[...d.commonAreas]:[]}; } render(); }, ()=>{});
   db.collection("assignments").onSnapshot(s=>{ const m={}; s.docs.forEach(d=>m[d.id]=d.data()); S.assign=m; merge(); }, ()=>{});
   db.collection("people").onSnapshot(s=>{ const m={}; s.docs.forEach(d=>{ const n=d.data()?.name; if(typeof n==="string") m[d.id]=n; }); S.people=m; render(); }, ()=>{});
