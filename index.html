@@ -524,6 +524,8 @@ body{padding-top:env(safe-area-inset-top,0px)}
   <div class="acc-h">Administradores</div>
   <ul class="acc-list" id="fbAdminsL"></ul>
   <div class="acc-add"><input id="fbAdminsIn" type="email" placeholder="correo@ejemplo.com" autocomplete="off" spellcheck="false" aria-label="Agregar administrador"><button type="button" data-accadd="admins">Agregar</button></div>
+  <div class="acc-h">Última vez en la app</div>
+  <ul class="acc-list" id="fbSeenL"><li class="empty">Cargando…</li></ul>
   <div class="row"><span class="fb-msg" id="fbAccMsg" style="margin-right:auto"></span><button class="fb-out" id="fbAccClose" type="button">Cerrar</button><button class="fb-go" id="fbAccSave" type="button" style="padding:8px 14px">Guardar</button></div>
 </div></div>
 <script>
@@ -537,7 +539,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261112090951";
+  const BUILD="20261112120604";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -697,16 +699,20 @@ function colApi(path, cons=[]){
 const db = { doc: docApi, collection: p => colApi(p) };
 
 /* ---------- presencia (quién está conectado) ---------- */
-function makeRoom(uid){
-  let mine={}, timer=null, unsub=null;
+function makeRoom(uid, email){
+  let mine={}, timer=null, unsub=null, first=null;
   const ref=doc(fs, "presence/"+uid);
-  const push = () => setDoc(ref, {...mine, at:Date.now()}).catch(()=>{});
-  window.addEventListener("pagehide", ()=>{ deleteDoc(ref).catch(()=>{}); });
+  const dayOf = ms => { const d=new Date(ms); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; };
+  const ready = getDoc(ref).then(s=>{ const d=s.exists()?s.data():{}; if(d.first && dayOf(d.first)===dayOf(Date.now())) first=d.first; }).catch(()=>{});
+  /* Se guarda la última vez que estuvo y la primera entrada del día (para "Última vez en la app") */
+  const push = async (closed=false) => { await ready; const now=Date.now(); if(!first || dayOf(first)!==dayOf(now)) first=now; return setDoc(ref, {...mine, email:email||"", at:now, first, closed}).catch(()=>{}); };
+  window.addEventListener("pagehide", ()=>{ push(true); });
+  document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible" && timer) push(); });
   return {
     presence: async patch => { mine={...patch}; push(); if(!timer) timer=setInterval(push, 60000); },
     onPeers: (fn, onErr) => {
       let last=[];
-      const emit = () => { const now=Date.now(); fn({ peers: last.filter(p=>now-(p.data.at||0)<150000).map(p=>({ peer:p.id, isMe:p.id===uid, by:p.id, presence:p.data })) }); };
+      const emit = () => { const now=Date.now(); fn({ peers: last.filter(p=>!p.data.closed && now-(p.data.at||0)<150000).map(p=>({ peer:p.id, isMe:p.id===uid, by:p.id, presence:p.data })) }); };
       unsub = onSnapshot(collection(fs, "presence"), s=>{ last=s.docs.map(d=>({id:d.id, data:d.data()})); emit(); }, e=>onErr&&onErr(e));
       setInterval(emit, 60000);
       return () => unsub && unsub();
@@ -777,10 +783,23 @@ onAuthStateChanged(auth, async u => {
       if(t.dataset.accadd){ addFrom(t.dataset.accadd); $g(t.dataset.accadd==="members"?"fbMembersIn":"fbAdminsIn").focus(); }
       if(t.dataset.accrm){ A[t.dataset.accrm]=A[t.dataset.accrm].filter(x=>x!==t.dataset.em); drawAcc(); } });
     for(const [id,k] of [["fbMembersIn","members"],["fbAdminsIn","admins"]]) $g(id).addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addFrom(k); } });
+    const drawSeen = async () => {
+      const L=$g("fbSeenL"); L.innerHTML=`<li class="empty">Cargando…</li>`;
+      try{
+        const [ps, pp] = await Promise.all([getDocs(collection(fs,"presence")), getDocs(collection(fs,"people"))]);
+        const names={}; pp.docs.forEach(d=>{ const v=d.data()||{}; if(v.name) names[d.id]=v.name; });
+        const now=Date.now(), t0=new Date(); t0.setHours(0,0,0,0);
+        const hm=ms=>new Date(ms).toLocaleTimeString("es-EC",{hour:"2-digit",minute:"2-digit"});
+        const when=ms=>{ if(ms>=t0.getTime()) return "hoy "+hm(ms); if(ms>=t0.getTime()-864e5) return "ayer "+hm(ms); return new Date(ms).toLocaleDateString("es-EC",{day:"2-digit",month:"2-digit",year:"2-digit"})+" "+hm(ms); };
+        const rows=ps.docs.map(d=>({id:d.id, ...(d.data()||{})})).filter(r=>r.at).map(r=>({...r, name:names[r.id]||r.email||"Sin nombre", online:!r.closed && now-r.at<150000})).sort((a,b)=>b.at-a.at);
+        L.innerHTML = rows.length ? rows.map(r=>`<li><span>${escH(r.name)}</span><small style="color:var(--muted);text-align:right">${r.online?"en línea ahora":escH(when(r.at))}${r.first&&r.first>=t0.getTime()?` · entró hoy ${escH(hm(r.first))}`:""}</small></li>`).join("") : `<li class="empty">Todavía no hay registros. Se empieza a guardar desde hoy.</li>`;
+      }catch(e){ L.innerHTML=`<li class="empty">No se pudo cargar.</li>`; }
+    };
     b.onclick = async () => {
       let a={admins:[],members:[]}; try{ const s=await getDoc(doc(fs,"config/access")); if(s.exists()) a={admins:[],members:[],...s.data()}; }catch(e){}
       A.members=[...(a.members||[])]; A.admins=[...(a.admins||[])]; $g("fbMembersIn").value=""; $g("fbAdminsIn").value="";
       drawAcc(); $g("fbAccMsg").textContent=""; $g("fbAcc").hidden=false; $g("fbMembersIn").focus();
+      drawSeen();
     };
     $g("fbAccClose").onclick=()=>{ $g("fbAcc").hidden=true; };
     $g("fbAccSave").onclick=async()=>{ const m=$g("fbAccMsg");
@@ -788,7 +807,7 @@ onAuthStateChanged(auth, async u => {
       try{ await setDoc(doc(fs,"config/access"), {members:A.members, admins:A.admins.filter(x=>!ADMINS.includes(x)), updatedAt:new Date().toISOString(), by:email}); m.className="fb-msg ok"; m.textContent="Guardado"; setTimeout(()=>{ $g("fbAcc").hidden=true; },700); }
       catch(e){ m.className="fb-msg"; m.textContent="No se pudo guardar."; } };
   }
-  window.__fbResolve({ db, user, room: makeRoom(u.uid), downloads, sample: aiSample });
+  window.__fbResolve({ db, user, room: makeRoom(u.uid, u.email), downloads, sample: aiSample });
   if(isAdmin) offerImport();
 });
 </script>
