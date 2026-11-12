@@ -159,6 +159,7 @@ Lista · Proyectos · Renders · Correcciones · Planos · Mis tareas · ✦ Pre
 
 ## 6. Respaldo
 - Botón "⤓ Respaldo" arriba, solo administración: descarga un Excel con las hojas Proyectos, Áreas, Actividad, "Datos para restaurar" (copia exacta para volver a cargar todo) e Info. No incluye el presupuesto privado.
+- Botón **"⤓ Tareas"** (solo administración): descarga un Excel con las tareas pendientes de cada persona (las que tiene ahora como responsable 1 o 2). Hoja "Todas" y una hoja por persona (más "Sin responsable"). Columnas: Responsable, Proyecto, Área, Categoría, Fase, Prioridad, Deadline, Días (negativo = vencida), Estado (Vencida / Por vencer / A tiempo), Rol. Orden: por persona, luego prioridad y deadline. No incluye lo que ya está en Revisado DC, Enviados o Aprobados.
 - Pendiente: envío automático del respaldo por correo el día 1 de cada mes (requiere conectar Gmail u Outlook).
 
 ## 7. Pendientes (cuando Denisse lo indique)

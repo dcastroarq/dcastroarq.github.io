@@ -427,6 +427,7 @@ label.f>span{font-family:var(--f-display);font-weight:600;text-transform:upperca
     <span class="role" id="role" hidden></span>
     <button class="btn ask-btn" id="btnAsk" type="button">✦ Preguntar</button>
     <button class="btn" id="btnSettings" type="button">Ajustes</button>
+    <button class="btn" id="btnTasksXL" type="button" hidden title="Descargar un Excel con las tareas de cada persona, su prioridad y su fecha límite">⤓ Tareas</button>
     <button class="btn" id="btnBackup" type="button" hidden title="Descargar un Excel con todos los proyectos, áreas y actividad">⤓ Respaldo</button>
     <button class="btn primary" id="btnNew" type="button">+ Nuevo proyecto</button>
   </div>
@@ -536,7 +537,7 @@ body{padding-top:env(safe-area-inset-top,0px)}
 <script>
 /* Actualización automática y silenciosa: también desde el ícono del inicio. Si hay una tarjeta o formulario abierto, espera a que termine. */
 (function(){
-  const BUILD="20261105093026";
+  const BUILD="20261112090951";
   const go=v=>{ const u=new URL(location.href); u.searchParams.set("v",v); location.replace(u.toString()); };
   const busy=()=>{ const ov=document.getElementById("overlay"); const a=document.activeElement; return (ov&&ov.children.length) || (a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
   let pending=null, last=0;
@@ -1220,6 +1221,7 @@ function render(){
   renderFilters(); renderStrip(); renderPeers(); renderWho();
   $("#btnNew").hidden = !S.isAdmin;
   $("#btnBackup").hidden = !S.isAdmin || S.local || !S.db;
+  $("#btnTasksXL").hidden = !S.isAdmin || S.local || !S.db;
   const main=$("#main");
   if(!S.ready){ main.innerHTML=`<div class="empty loading-box" role="status"><img class="loading-logo" src="icon-192.png" alt="" width="96" height="96" onerror="this.remove()"><span class="spin-big" aria-hidden="true"></span><p>Cargando proyectos…</p></div>`; return; }
   if(!S.projects.length){
@@ -2753,6 +2755,35 @@ async function exportBackup(){
   finally{ btn.disabled=false; btn.textContent=old; }
 }
 $("#btnBackup").onclick=exportBackup;
+async function exportTasks(){
+  if(!S.isAdmin) return; const btn=$("#btnTasksXL"); btn.disabled=true; const old=btn.textContent; btn.textContent="Preparando…";
+  try{
+    const dl=await claude.use("downloads"); if(!dl){ toast("Esta vista no permite descargar archivos."); return; }
+    const prio=v=>(PRIOS.find(x=>x[0]===v)||[,v||""])[1];
+    const isDoneNow = n => (n.kind==="area"&&n.status===lastStage()) || (n.kind==="corr"&&n.status==="revisado") || (n.kind==="plan"&&["revisado","enviado"].includes(n.status)) || (n.kind==="render"&&["aprobado","cliente"].includes(n.status));
+    const rows=[];
+    for(const p of S.projects) for(const a of (p.areas||[])){
+      const n=areaNow(p,a); if(n.done||isDoneNow(n)) continue;
+      const cat={area:"proyectos",render:"renders",corr:"corr",plan:"planos"}[n.kind]||"proyectos";
+      const due=catDue(p,a,cat)||""; const d=due?daysTo(due):null;
+      const base={p,a,n,cat,due,d, pr:aPrio(p,a)};
+      if(n.owner) rows.push({...base, who:n.owner, rol:"Responsable"});
+      else rows.push({...base, who:"Sin responsable", rol:""});
+      if(n.owner2) rows.push({...base, who:n.owner2, rol:"Responsable 2"});
+    }
+    const order=[...S.cfg.team.filter(x=>rows.some(r=>r.who===x)), ...[...new Set(rows.map(r=>r.who))].filter(x=>!S.cfg.team.includes(x)).sort()];
+    const sk=r=>`${PRANK[r.pr]??1}|${r.due||"9999"}|${r.p.name}|${r.a.name}`;
+    const obj=r=>({"Responsable":r.who,"Proyecto":r.p.name||"","Área":r.a.name,"Categoría":r.n.cat,"Fase":r.n.phase+(r.n.extra?` · ${r.n.extra}`:""),"Prioridad":prio(r.pr),"Deadline":r.due?fmtDate(r.due):"","Días":r.d==null?"":r.d,"Estado":r.d==null?"":r.d<0?"Vencida":r.d<=3?"Por vencer":"A tiempo","Rol":r.rol});
+    const all=[]; for(const w of order) all.push(...rows.filter(r=>r.who===w).sort((x,y)=>sk(x).localeCompare(sk(y))));
+    const W=[22,36,26,14,26,10,12,7,12,14];
+    const safe=s=>String(s).replace(/[\\\/?*\[\]:]/g," ").slice(0,31);
+    const sheets=[{name:"Todas",rows:XL.fromObjs(all.map(obj)),widths:W}, ...order.map(w=>({name:safe(w),rows:XL.fromObjs(all.filter(r=>r.who===w).map(obj)),widths:W}))];
+    await dl.save({filename:`Tareas por persona ${isoDay(new Date())}.xlsx`, data:XL.book(sheets)});
+    toast("Excel de tareas descargado");
+  }catch(e){ if(e?.code==="declined") toast("Descarga cancelada"); else { console.error(e); toast("No se pudo descargar el Excel."); } }
+  finally{ btn.disabled=false; btn.textContent=old; }
+}
+$("#btnTasksXL").onclick=exportTasks;
 $("#btnSettings").onclick=openSettings;
 $("#btnAsk").onclick=openAsk;
 $("#q").oninput=e=>{ S.q=e.target.value; $("#qClear").hidden=!S.q; render(); };
